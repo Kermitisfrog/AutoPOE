@@ -51,6 +51,7 @@ namespace AutoPOE.Logic.Sequences
                 { TaskNode.TaskNodeType.Combat, new CombatTaskAction() },
                 { TaskNode.TaskNodeType.BuffLead, new BuffLeadTaskAction() },
                 { TaskNode.TaskNodeType.GemLevel, new GemLevelTaskAction() },
+                { TaskNode.TaskNodeType.Ultimatum, new UltimatumTaskAction() },
             };
             ResetPathing();
         }
@@ -137,6 +138,18 @@ namespace AutoPOE.Logic.Sequences
 
         public void Tick()
         {
+            // Ultimatum panel: if visible, ensure an Ultimatum task is at the front of the queue and execute it.
+            var ultimatumPanel = Core.GameController.IngameState.IngameUi.UltimatumPanel;
+            if (ultimatumPanel != null && ultimatumPanel.IsVisible)
+            {
+                if (!_tasks.Any(t => t.Type == TaskNode.TaskNodeType.Ultimatum))
+                    _tasks.Insert(0, new TaskNode(Vector2.Zero, 0, TaskNode.TaskNodeType.Ultimatum));
+
+                if (DateTime.Now > _nextBotAction && _tasks.Count > 0)
+                    ExecuteTask();
+                return;
+            }
+
             if (Input.IsKeyDown(Keys.CapsLock))
             {
                 // If control is held, disable follower logic and clear tasks to give player full manual control without interference.
@@ -673,7 +686,8 @@ namespace AutoPOE.Logic.Sequences
             ClaimWaypoint,
             Combat,
             BuffLead,
-                GemLevel,
+            GemLevel,
+            Ultimatum,
         }
 
         public Vector2 WorldPosition { get; set; }
