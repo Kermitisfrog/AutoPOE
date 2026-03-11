@@ -25,9 +25,6 @@ namespace AutoPOE
             [Menu("Leader Name", "Name of the player to follow.")]
             public TextNode LeaderName { get; set; } = new TextNode("");
 
-            [Menu("Min Path Distance", "Minimum distance before adding new pathfinding waypoint. (Grid coordinates - use smaller values than world pos)")]
-            public RangeNode<int> PathfindingNodeDistance { get; set; } = new RangeNode<int>(50, 10, 300);
-
             [Menu("Movement Key", "Skill hotkey for movement (e.g., dash, walk).")]
             public HotkeyNode MovementKey { get; set; } = (HotkeyNode)Keys.T;
 
@@ -48,9 +45,6 @@ namespace AutoPOE
 
             [Menu("Dash Leader Distance", "Minimum distance to leader before forcing a dash toward leader. (Grid coordinates)")]
             public RangeNode<int> DashLeaderDistance { get; set; } = new RangeNode<int>(40, 5, 200);
-
-            [Menu("Close Follow", "Stay near leader at all times (vs. lazy follow).")]
-            public ToggleNode IsCloseFollowEnabled { get; set; } = new ToggleNode(false);
 
             [Menu("Enable Combat Tasks", "Allow follower to create combat tasks when close to leader.")]
             public ToggleNode IsCombatEnabled { get; set; } = new ToggleNode(true);

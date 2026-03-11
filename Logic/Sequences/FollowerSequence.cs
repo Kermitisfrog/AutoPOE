@@ -1,10 +1,9 @@
 using AutoPOE.Logic.Actions;
+using AutoPOE.Logic.Helpers;
 using ExileCore;
-using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Enums;
 using ExileCore.Shared.Helpers;
-using System.Diagnostics.Eventing.Reader;
 using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
@@ -79,10 +78,10 @@ namespace AutoPOE.Logic.Sequences
                 _reacquireLeaderUntil = DateTime.Now.AddMilliseconds(Core.Settings.Follower.LeaderReacquireDelayMs.Value);
 
                 // Load initial transitions
-                foreach (var transition in Core.GameController.EntityListWrapper.Entities.Where(I =>
-                    I.Type == EntityType.AreaTransition ||
-                    I.Type == EntityType.Portal ||
-                    I.Type == EntityType.TownPortal).ToList())
+                var initByType = Core.GameController.EntityListWrapper.ValidEntitiesByType;
+                foreach (var transition in initByType[EntityType.AreaTransition]
+                    .Concat(initByType[EntityType.Portal])
+                    .Concat(initByType[EntityType.TownPortal]))
                 {
                     if (!_areaTransitions.ContainsKey(transition.Id))
                         _areaTransitions.Add(transition.Id, transition);
@@ -159,12 +158,12 @@ namespace AutoPOE.Logic.Sequences
             {
                 // Direct follow mode ignores all standard follower task logic.
                 _tasks.Clear();
-                _followTarget = GetFollowingTarget();
+                _followTarget = EntityHelper.GetFollowingTarget();
 
                 if (_followTarget != null)
                 {
                     var targetPos = _followTarget.GridPosNum;
-                    SetCursorPosHuman2(Controls.GetScreenClampedGridPos(targetPos));
+                    CursorHelper.SetCursorPosHuman2(Controls.GetScreenClampedGridPos(targetPos));
                     _lastTargetPosition = targetPos;
 
                     var followerPos = Core.GameController.Player.GridPosNum;
@@ -221,13 +220,14 @@ namespace AutoPOE.Logic.Sequences
             }
 
             // Dynamically update area transitions (portals/passages appear during gameplay)
+            var validByType = Core.GameController.EntityListWrapper.ValidEntitiesByType;
             var currentTransitionIds = new HashSet<uint>(
-                Core.GameController.EntityListWrapper.Entities
-                    .Where(I => I.Type == EntityType.AreaTransition || 
-                               I.Type == EntityType.Portal || 
-                               I.Type == EntityType.TownPortal)
-                    .Select(I => I.Id)
-                    .ToList());
+                validByType[EntityType.AreaTransition]
+                    .Concat(validByType[EntityType.Portal])
+                    .Concat(validByType[EntityType.TownPortal])
+                    .Concat(validByType[EntityType.MiscellaneousObjects].Where(I => I.Metadata == "Metadata/MiscellaneousObjects/Faridun/DjinnPortal"))
+                    .Concat(validByType[EntityType.Effect].Where(I => I.Metadata == "Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal"))
+                    .Select(I => I.Id));
 
             // Remove transitions that no longer exist
             var removedIds = _areaTransitions.Keys.Where(id => !currentTransitionIds.Contains(id)).ToList();
@@ -235,18 +235,18 @@ namespace AutoPOE.Logic.Sequences
                 _areaTransitions.Remove(id);
 
             // Add new transitions
-            foreach (var transition in Core.GameController.EntityListWrapper.Entities.Where(I =>
-                I.Type == EntityType.AreaTransition ||
-                I.Type == EntityType.Portal ||
-                I.Type == EntityType.TownPortal ||
-                (I.Type == EntityType.MiscellaneousObjects && I.RenderName == "Enter Mirage")).ToList())
+            foreach (var transition in validByType[EntityType.AreaTransition]
+                .Concat(validByType[EntityType.Portal])
+                .Concat(validByType[EntityType.TownPortal])
+                    .Concat(validByType[EntityType.MiscellaneousObjects].Where(I => I.Metadata == "Metadata/MiscellaneousObjects/Faridun/DjinnPortal"))
+                    .Concat(validByType[EntityType.Effect].Where(I => I.Metadata == "Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal")))
             {
                 if (!_areaTransitions.ContainsKey(transition.Id))
                     _areaTransitions.Add(transition.Id, transition);
             }
 
             // Cache the current follow target
-            _followTarget = GetFollowingTarget();
+            _followTarget = EntityHelper.GetFollowingTarget();
             if (_followTarget == null && DateTime.Now < _reacquireLeaderUntil)
             {
                 _tasks.Clear();
@@ -287,47 +287,28 @@ namespace AutoPOE.Logic.Sequences
                             _debugFarDetails += " taskAdded=false";
                         }
                     }
-                    // We have no path, set us to go to leader pos.
-                    else if (_tasks.Count == 0)
+                    else if (!_tasks.Any(t => t.Type == TaskNode.TaskNodeType.Transition))
                     {
-                        _debugLeaderBranch = "far/seed-path";
-                        Core.Graphics.DrawText("[DEBUG] Adding initial movement task to leader", new Vector2(100, 160), SharpDX.Color.Cyan);
-                        _tasks.Add(new TaskNode(targetPos, Core.Settings.Follower.PathfindingNodeDistance.Value));
-                    }
-                    // We have a path. Check if the last task is far enough away from current one to add a new task node.
-                    else
-                    {
-                        _debugLeaderBranch = "far/extend-path";
-                        var distanceFromLastTask = Vector2.Distance(_tasks.Last().WorldPosition, targetPos);
-                        _debugFarDetails += $" lastTaskDist={distanceFromLastTask:F0} nodeDist={Core.Settings.Follower.PathfindingNodeDistance.Value} tasks={_tasks.Count}";
-                        if (distanceFromLastTask >= Core.Settings.Follower.PathfindingNodeDistance.Value)
-                            _tasks.Add(new TaskNode(targetPos, Core.Settings.Follower.PathfindingNodeDistance.Value));
+                        // Upsert a single Movement task aimed at the leader's current position.
+                        // MovementTaskAction handles the cursor aim, key press, and dash check.
+                        _debugLeaderBranch = "far/direct-move";
+                        var existingMoveTask = _tasks.FirstOrDefault(t => t.Type == TaskNode.TaskNodeType.Movement);
+                        if (existingMoveTask != null)
+                            existingMoveTask.WorldPosition = targetPos;
+                        else
+                            _tasks.Insert(0, new TaskNode(targetPos, Core.Settings.Follower.ClearPathDistance.Value));
                     }
                 }
                 else
                 {
                     _debugLeaderBranch = "close";
-                    // Clear all tasks except for looting/claim portal (as those only get done when we're within range of leader)
-                    if (_tasks.Count > 0)
-                    {
-                        for (var i = _tasks.Count - 1; i >= 0; i--)
-                            if (_tasks[i].Type == TaskNode.TaskNodeType.Movement || _tasks[i].Type == TaskNode.TaskNodeType.Transition)
-                                _tasks.RemoveAt(i);
-                    }                    
-                    else if (Core.Settings.Follower.IsCloseFollowEnabled.Value)
-                    {
-                        // Close follow logic. We have no current tasks. Check if we should move towards leader
-                        if (distanceFromFollower >= Core.Settings.Follower.PathfindingNodeDistance.Value)
-                        {
-                            _tasks.Add(new TaskNode(targetPos, Core.Settings.Follower.PathfindingNodeDistance.Value));
-                        }
-                        else
-                        {
-                        }
-                    }
+                    // Clear all movement and transition tasks — we are within close range of the leader.
+                    for (var i = _tasks.Count - 1; i >= 0; i--)
+                        if (_tasks[i].Type == TaskNode.TaskNodeType.Movement || _tasks[i].Type == TaskNode.TaskNodeType.Transition)
+                            _tasks.RemoveAt(i);
 
                     // Check if we should add quest loot logic. We're close to leader already
-                    var questLoot = GetLootableQuestItem();
+                    var questLoot = EntityHelper.GetLootableQuestItem();
                     var questLootInRange = questLoot != null &&
                         Vector2.Distance(followerPos, questLoot.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value;
                     var hasLootTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.Loot) != null;
@@ -354,12 +335,39 @@ namespace AutoPOE.Logic.Sequences
                         }
                     }
 
+                    // Buff check: queue buff tasks for leader and optional extra named player if they are missing link target buff.
+                    if (Core.Settings.Follower.IsBuffEnabled.Value)
+                    {
+                        var configuredBuffName = Core.Settings.Follower.BuffTargetBuffName.Value?.Trim();
+                        if (string.IsNullOrWhiteSpace(configuredBuffName))
+                            configuredBuffName = "critical_link_target";
+
+                        var followTargetHasConfiguredBuff = EntityHelper.HasBuff(_followTarget, configuredBuffName);
+                        if (_followTarget != null && !followTargetHasConfiguredBuff && !HasBuffTaskForTarget(_followTarget.Id))
+                        {
+                            var leaderLabel = !string.IsNullOrWhiteSpace(_followTarget.RenderName) ? _followTarget.RenderName : "leader";
+                            Core.Graphics.DrawText($"[DEBUG] Creating buff task on leader at {targetPos}", new Vector2(100, 260), SharpDX.Color.Green);
+                            _tasks.Add(new TaskNode(targetPos, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.BuffLead, _followTarget.Id, leaderLabel));
+                        }
+
+                        var extraBuffTargetName = Core.Settings.Follower.ExtraBuffTargetName.Value?.Trim();
+                        var extraBuffTarget = EntityHelper.GetPlayerEntityByName(extraBuffTargetName);
+                        var isDifferentFromLeader = _followTarget == null || extraBuffTarget == null || extraBuffTarget.Id != _followTarget.Id;
+
+                        if (extraBuffTarget != null && isDifferentFromLeader && !EntityHelper.HasBuff(extraBuffTarget, configuredBuffName) && !HasBuffTaskForTarget(extraBuffTarget.Id))
+                        {
+                            var extraLabel = !string.IsNullOrWhiteSpace(extraBuffTarget.RenderName) ? extraBuffTarget.RenderName : extraBuffTargetName ?? "extra-target";
+                            Core.Graphics.DrawText($"[DEBUG] Creating buff task on extra target at {extraBuffTarget.GridPosNum}", new Vector2(100, 280), SharpDX.Color.Green);
+                            _tasks.Add(new TaskNode(extraBuffTarget.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.BuffLead, extraBuffTarget.Id, extraLabel));
+                        }
+                    }
+
                     // Combat check: if player does NOT have the smite buff, look for nearby hostile enemies
                     // Combat check: only if combat tasks enabled and player does NOT have the mine buff
                     var shouldHoldCloseFollowMovement = false;
                     if (Core.Settings.Follower.IsCombatEnabled.Value && !Core.GameController.Player.Buffs.Any(buff => buff.Name == "smite_buff"))
                     {
-                        var hostileEnemy = GetNearbyHostileEnemy();
+                        var hostileEnemy = EntityHelper.GetNearbyHostileEnemy();
                         var combatLeash = Core.Settings.Follower.CombatLeashDistance.Value;
                         var enemyDistToLeader = hostileEnemy != null ? Vector2.Distance(hostileEnemy.GridPosNum, targetPos) : float.MaxValue;
                         var combatCooldownActive = DateTime.Now < _combatCooldownUntil;
@@ -403,36 +411,9 @@ namespace AutoPOE.Logic.Sequences
                         }
                     }
 
-                    // Buff check: queue buff tasks for leader and optional extra named player if they are missing link target buff.
-                    if (Core.Settings.Follower.IsBuffEnabled.Value)
-                    {
-                        var configuredBuffName = Core.Settings.Follower.BuffTargetBuffName.Value?.Trim();
-                        if (string.IsNullOrWhiteSpace(configuredBuffName))
-                            configuredBuffName = "critical_link_target";
-
-                        var followTargetHasConfiguredBuff = HasBuff(_followTarget, configuredBuffName);
-                        if (_followTarget != null && !followTargetHasConfiguredBuff && !HasBuffTaskForTarget(_followTarget.Id))
-                        {
-                            var leaderLabel = !string.IsNullOrWhiteSpace(_followTarget.RenderName) ? _followTarget.RenderName : "leader";
-                            Core.Graphics.DrawText($"[DEBUG] Creating buff task on leader at {targetPos}", new Vector2(100, 260), SharpDX.Color.Green);
-                            _tasks.Add(new TaskNode(targetPos, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.BuffLead, _followTarget.Id, leaderLabel));
-                        }
-
-                        var extraBuffTargetName = Core.Settings.Follower.ExtraBuffTargetName.Value?.Trim();
-                        var extraBuffTarget = GetPlayerEntityByName(extraBuffTargetName);
-                        var isDifferentFromLeader = _followTarget == null || extraBuffTarget == null || extraBuffTarget.Id != _followTarget.Id;
-
-                        if (extraBuffTarget != null && isDifferentFromLeader && !HasBuff(extraBuffTarget, configuredBuffName) && !HasBuffTaskForTarget(extraBuffTarget.Id))
-                        {
-                            var extraLabel = !string.IsNullOrWhiteSpace(extraBuffTarget.RenderName) ? extraBuffTarget.RenderName : extraBuffTargetName ?? "extra-target";
-                            Core.Graphics.DrawText($"[DEBUG] Creating buff task on extra target at {extraBuffTarget.GridPosNum}", new Vector2(100, 280), SharpDX.Color.Green);
-                            _tasks.Add(new TaskNode(extraBuffTarget.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.BuffLead, extraBuffTarget.Id, extraLabel));
-                        }
-                    }
-
                     // Gem level check: if enabled, create a gem level task on the leader (if we have levelable gems and no existing gem level task)
                     var hasGemLevelTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.GemLevel) != null;
-                    if (Core.Settings.Follower.IsGemLevelingEnabled.Value && !hasGemLevelTask && GetLevelableGems().Count > 0)
+                    if (Core.Settings.Follower.IsGemLevelingEnabled.Value && !hasGemLevelTask && GemHelper.GetLevelableGems().Count > 0)
                     {
                         Core.Graphics.DrawText("[DEBUG] Creating gem level task", new Vector2(100, 300), SharpDX.Color.LightSkyBlue);
                         _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.GemLevel));
@@ -454,7 +435,7 @@ namespace AutoPOE.Logic.Sequences
                 Core.Graphics.DrawText($"[DEBUG] Transitions in range: {transOptions.Length}", new Vector2(100, 160), SharpDX.Color.Magenta);
                 
                 if (transOptions.Length > 0)
-                    _tasks.Add(new TaskNode(transOptions[_random.Next(transOptions.Length)].GridPosNum, Core.Settings.Follower.PathfindingNodeDistance.Value, TaskNode.TaskNodeType.Transition));
+                    _tasks.Add(new TaskNode(transOptions[_random.Next(transOptions.Length)].GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.Transition));
             }
 
             // Execute tasks
@@ -489,12 +470,12 @@ namespace AutoPOE.Logic.Sequences
                 () => _nextBotAction,
                 value => _nextBotAction = value,
                 CheckDashTerrain,
-                GetLootableQuestItem,
-                GetNearbyHostileEnemy,
-                GetLevelableGems,
-                MouseoverItem,
-                ClickLevelableGem,
-                SetCursorPosHuman2,
+                EntityHelper.GetLootableQuestItem,
+                EntityHelper.GetNearbyHostileEnemy,
+                GemHelper.GetLevelableGems,
+                item => CursorHelper.MouseoverItem(item, _random),
+                element => CursorHelper.ClickLevelableGem(element, _random),
+                CursorHelper.SetCursorPosHuman2,
                 value => _combatCooldownUntil = value);
 
             _taskActions[currentTask.Type].Execute(context, currentTask);
@@ -547,7 +528,7 @@ namespace AutoPOE.Logic.Sequences
             {
                 Core.Graphics.DrawText($"[DEBUG] CheckDashTerrain: dashReason={reason}", new Vector2(10, 340), SharpDX.Color.Lime);
                 _nextBotAction = DateTime.Now.AddMilliseconds(500 + _random.Next(Core.Settings.Follower.BotInputFrequency));
-                SetCursorPosHuman2(Controls.GetScreenClampedGridPos(dashTarget));
+                CursorHelper.SetCursorPosHuman2(Controls.GetScreenClampedGridPos(dashTarget));
                 Thread.Sleep(50 + _random.Next(Core.Settings.Follower.BotInputFrequency));
                 Input.KeyDown(Core.Settings.Follower.DashKey);
                 Thread.Sleep(15 + _random.Next(Core.Settings.Follower.BotInputFrequency));
@@ -555,7 +536,7 @@ namespace AutoPOE.Logic.Sequences
 
                 // After dash, attempt one move input toward the follow target to keep closing distance.
                 var moveTarget = _followTarget?.GridPosNum ?? dashTarget;
-                SetCursorPosHuman2(Controls.GetScreenClampedGridPos(moveTarget));
+                CursorHelper.SetCursorPosHuman2(Controls.GetScreenClampedGridPos(moveTarget));
                 Thread.Sleep(30 + _random.Next(Core.Settings.Follower.BotInputFrequency));
                 Input.KeyDown(Core.Settings.Follower.MovementKey);
                 Thread.Sleep(20 + _random.Next(Core.Settings.Follower.BotInputFrequency));
@@ -639,216 +620,12 @@ namespace AutoPOE.Logic.Sequences
             return false;
         }
 
-        private Entity? GetFollowingTarget()
-        {
-            var leaderName = Core.Settings.Follower.LeaderName.Value?.Trim();
-            return GetPlayerEntityByName(leaderName);
-        }
-
-        private Entity? GetPlayerEntityByName(string? playerNameToFind)
-        {
-            if (string.IsNullOrEmpty(playerNameToFind))
-                return null;
-
-            var playerNameLower = playerNameToFind.ToLowerInvariant();
-
-            try
-            {
-                // During/after zone transitions some player entities can have temporarily invalid components.
-                // Iterate defensively so one bad entity does not prevent reacquiring the actual leader.
-                foreach (var playerEntity in Core.GameController.EntityListWrapper.Entities.Where(x => x.Type == EntityType.Player))
-                {
-                    try
-                    {
-                        var playerComponent = playerEntity.GetComponent<Player>();
-                        var playerName = playerComponent?.PlayerName;
-                        if (!string.IsNullOrEmpty(playerName) && playerName.ToLowerInvariant() == playerNameLower)
-                            return playerEntity;
-
-                        var renderName = playerEntity.RenderName;
-                        if (!string.IsNullOrEmpty(renderName) && renderName.ToLowerInvariant() == playerNameLower)
-                            return playerEntity;
-                    }
-                    catch
-                    {
-                        // Ignore malformed entities and continue searching.
-                    }
-                }
-
-                foreach (var playerEntity in Core.GameController.Entities.Where(x => x.Type == EntityType.Player))
-                {
-                    try
-                    {
-                        var playerComponent = playerEntity.GetComponent<Player>();
-                        var playerName = playerComponent?.PlayerName;
-                        if (!string.IsNullOrEmpty(playerName) && playerName.ToLowerInvariant() == playerNameLower)
-                            return playerEntity;
-
-                        var renderName = playerEntity.RenderName;
-                        if (!string.IsNullOrEmpty(renderName) && renderName.ToLowerInvariant() == playerNameLower)
-                            return playerEntity;
-                    }
-                    catch
-                    {
-                        // Ignore malformed entities and continue searching.
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Core.LogError("FollowerSequence.GetFollowingTarget", ex);
-            }
-
-            return null;
-        }
-
-        private static bool HasBuff(Entity? entity, string buffName)
-        {
-            if (entity == null || string.IsNullOrWhiteSpace(buffName))
-                return false;
-
-            try
-            {
-                return entity.Buffs.Any(buff => string.Equals(buff.Name, buffName, StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         private bool HasBuffTaskForTarget(uint targetEntityId)
         {
             return _tasks.Any(task => task.Type == TaskNode.TaskNodeType.BuffLead && task.TargetEntityId == targetEntityId);
         }
 
-        private Entity? GetLootableQuestItem()
-        {
-            try
-            {
-                return Core.GameController.EntityListWrapper.Entities
-                    .Where(e => e.Type == EntityType.WorldItem)
-                    .Where(e => e.IsTargetable)
-                    .Where(e => e.GetComponent<WorldItem>() != null)
-                    .FirstOrDefault(e =>
-                    {
-                        Entity itemEntity = e.GetComponent<WorldItem>().ItemEntity;
-                        var className = Core.GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName;
-                        var icon = itemEntity.GetComponent<WorldItem>()?.Icon;
-                        return className == "QuestItem" || icon == MapIconsIndex.LootFilterLargeGreenPentagon;
-                    });
-            }
-            catch
-            {
-                return null;
-            }
-        }
 
-        private Entity? GetNearbyHostileEnemy()
-        {
-            try
-            {
-                return Core.GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
-                    .Where(m => m.IsHostile && m.IsTargetable && m.IsAlive && 
-                               m.GridPosNum.Distance(Core.GameController.Player.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value)
-                    .OrderByDescending(m => GetMonsterRarityWeight(m.Rarity))
-                    .FirstOrDefault();
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static int GetMonsterRarityWeight(MonsterRarity rarity)
-        {
-            return rarity switch
-            {
-                MonsterRarity.Magic => 3,
-                MonsterRarity.Rare => 10,
-                MonsterRarity.Unique => 25,
-                _ => 1,
-            };
-        }
-
-        private void MouseoverItem(Entity item)
-        {
-            var uiLoot = Core.GameController.IngameState.IngameUi.ItemsOnGroundLabels.FirstOrDefault(I => I.IsVisible && I.ItemOnGround.Id == item.Id);
-            if (uiLoot != null)
-            {
-                var clickPos = uiLoot.Label.GetClientRect().Center;
-                var windowRect = Core.GameController.Window.GetWindowRectangle();
-                SetCursorPos(new Vector2(
-                    clickPos.X + _random.Next(-15, 15) + (int)windowRect.X,
-                    clickPos.Y + _random.Next(-10, 10) + (int)windowRect.Y));
-                Thread.Sleep(30 + _random.Next(Core.Settings.Follower.BotInputFrequency));
-            }
-        }
-
-        private void SetCursorPos(Vector2 position)
-        {
-            Input.SetCursorPos(position);
-        }
-
-        private void ClickLevelableGem(ExileCore.PoEMemory.Element clickableElement)
-        {
-            if (!clickableElement.IsVisible)
-                return;
-
-            var windowTopLeft = Core.GameController.Window.GetWindowRectangleTimeCache.TopLeft;
-            var center = clickableElement.GetClientRectCache.Center;
-            Input.SetCursorPos(new Vector2(windowTopLeft.X + center.X, windowTopLeft.Y + center.Y));
-            Thread.Sleep(20 + _random.Next(20));
-            Input.LeftDown();
-            Thread.Sleep(15 + _random.Next(15));
-            Input.LeftUp();
-            Core.ActionPerformed();
-        }
-
-        private List<ExileCore.PoEMemory.Element> GetLevelableGems()
-        {
-            var gemsToLevelUp = new List<ExileCore.PoEMemory.Element>();
-
-            var gemPanel = Core.GameController.IngameState.IngameUi?.GemLvlUpPanel;
-            if (gemPanel == null)
-                return gemsToLevelUp;
-
-            var panelType = gemPanel.GetType();
-            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
-            var levelUpAllButton = panelType.GetProperty("LevelUpAllGemsButton", flags)?.GetValue(gemPanel)
-                ?? panelType.GetField("LevelUpAllGemsButton", flags)?.GetValue(gemPanel);
-
-            var clickableGem = levelUpAllButton as ExileCore.PoEMemory.Element;
-
-            if (clickableGem == null || !clickableGem.IsVisible)
-                return gemsToLevelUp;
-
-            gemsToLevelUp.Add(clickableGem);
-
-            return gemsToLevelUp;
-        }
-
-        private string GetLevelUpAllButtonTypeName()
-        {
-            var gemPanel = Core.GameController.IngameState.IngameUi?.GemLvlUpPanel;
-            if (gemPanel == null)
-                return "GemLvlUpPanel=null";
-
-            var panelType = gemPanel.GetType();
-            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
-            var levelUpAllButton = panelType.GetProperty("LevelUpAllGemsButton", flags)?.GetValue(gemPanel)
-                ?? panelType.GetField("LevelUpAllGemsButton", flags)?.GetValue(gemPanel);
-
-            return levelUpAllButton?.GetType().FullName ?? "LevelUpAllGemsButton=null";
-        }
-
-        private void SetCursorPosHuman2(Vector2 vec)
-        {
-            var windowRect = Core.GameController.Window.GetWindowRectangle();
-            var absoluteX = (int)(windowRect.X + vec.X);
-            var absoluteY = (int)(windowRect.Y + vec.Y);
-            Input.SetCursorPos(new Vector2(absoluteX, absoluteY));
-        }
 
 
         public void Render()
@@ -875,8 +652,8 @@ namespace AutoPOE.Logic.Sequences
             var taskInfo = _tasks?.Count > 0 ? _tasks[0].Type.ToString() : "None";
             var taskCount = _tasks?.Count ?? 0;
             var directFollow = _isDirectFollowModeEnabled ? "ON" : "OFF";
-            var levelableGemCount = GetLevelableGems().Count;
-            var levelUpButtonType = GetLevelUpAllButtonTypeName();
+            var levelableGemCount = GemHelper.GetLevelableGems().Count;
+            var levelUpButtonType = GemHelper.GetLevelUpAllButtonTypeName();
             
             Core.Graphics.DrawText($"Follower: Leader='{Core.Settings.Follower.LeaderName}' Tasks={_tasks?.Count ?? 0} NextDist={dist:F0} TargetDist={targetDist} taskCount={taskCount}", new Vector2(100, 100), SharpDX.Color.White);
             Core.Graphics.DrawText($"LeaderDist={leaderDist:F0} FollowTarget={(_followTarget != null ? "Found" : "Lost")} CurrentTask={taskInfo} CanExecute={canExecute}", new Vector2(100, 120), SharpDX.Color.Yellow);

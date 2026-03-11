@@ -26,7 +26,7 @@ namespace AutoPOE.Logic.Actions
             Input.KeyUp(Core.Settings.Follower.MovementKey);
             Core.ActionPerformed();
 
-            if (taskDistance <= Core.Settings.Follower.PathfindingNodeDistance.Value * 1.5)
+            if (taskDistance <= Core.Settings.Follower.ClearPathDistance.Value)
                 context.Tasks.RemoveAt(0);
         }
     }
