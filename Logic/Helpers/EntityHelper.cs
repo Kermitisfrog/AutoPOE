@@ -117,24 +117,13 @@ namespace AutoPOE.Logic.Helpers
                 return Core.GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
                     .Where(m => m.IsHostile && m.IsTargetable && m.IsAlive &&
                                m.GridPosNum.Distance(Core.GameController.Player.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value)
-                    .OrderByDescending(m => GetMonsterRarityWeight(m.Rarity))
+                    .OrderBy(m => m.GridPosNum.Distance(Core.GameController.Player.GridPosNum))
                     .FirstOrDefault();
             }
             catch
             {
                 return null;
             }
-        }
-
-        private static int GetMonsterRarityWeight(MonsterRarity rarity)
-        {
-            return rarity switch
-            {
-                MonsterRarity.Magic => 3,
-                MonsterRarity.Rare => 10,
-                MonsterRarity.Unique => 25,
-                _ => 1,
-            };
         }
     }
 }
