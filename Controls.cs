@@ -36,17 +36,33 @@ namespace AutoPOE
             var screenByGridPos = GetScreenByGridPos(gridPosNum);
             var windowRectangle = Core.GameController.Window.GetWindowRectangle();
 
-            windowRectangle.Height -= 130f;
-            windowRectangle.Width -= 20f;
-            windowRectangle.Y += 10f;
-            windowRectangle.X += 10f;
+            // Clamp in window-relative space so callers can always use SetCursorPosHuman2 safely.
+            const float leftMargin = 10f;
+            const float rightMargin = 10f;
+            const float topMargin = 10f;
+            const float bottomMargin = 130f;
 
+            var minX = leftMargin;
+            var maxX = Math.Max(minX + 1f, windowRectangle.Width - rightMargin);
+            var minY = topMargin;
+            var maxY = Math.Max(minY + 1f, windowRectangle.Height - bottomMargin);
 
-            if (windowRectangle.Contains(new SharpDX.Vector2(screenByGridPos.X, screenByGridPos.Y)))
+            var inSafeBounds = screenByGridPos.X >= minX && screenByGridPos.X <= maxX &&
+                               screenByGridPos.Y >= minY && screenByGridPos.Y <= maxY;
+            if (inSafeBounds)
                 return screenByGridPos;
-            Vector2 vector2_1 = new Vector2(windowRectangle.Width / 2f, windowRectangle.Height / 2f);
-            Vector2 vector2_2 = Vector2.Normalize(screenByGridPos - vector2_1);
-            return vector2_1 + vector2_2 * (float)(int)Core.Settings.ClampSize;
+
+            var safeCenter = new Vector2((minX + maxX) / 2f, (minY + maxY) / 2f);
+            var delta = screenByGridPos - safeCenter;
+            if (delta.LengthSquared() < float.Epsilon)
+                return safeCenter;
+
+            var direction = Vector2.Normalize(delta);
+            var projected = safeCenter + direction * (float)(int)Core.Settings.ClampSize;
+
+            return new Vector2(
+                Math.Clamp(projected.X, minX, maxX),
+                Math.Clamp(projected.Y, minY, maxY));
         }
 
         public static bool ReleaseAllModifierKeys()
