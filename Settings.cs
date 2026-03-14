@@ -73,6 +73,9 @@ namespace AutoPOE
             [Menu("Buff Target Name", "Buff name to check on target before queuing buff task (e.g., critical_link_target).")]
             public TextNode BuffTargetBuffName { get; set; } = new TextNode("critical_link_target");
 
+            [Menu("Buff Refresh Interval", "Seconds before proactively recasting buff on tracked targets.")]
+            public RangeNode<int> BuffRefreshIntervalSeconds { get; set; } = new RangeNode<int>(8, 1, 30);
+
             [Menu("Extra Buff Target Name", "Optional additional player name to keep linked (PlayerName or RenderName).")]
             public TextNode ExtraBuffTargetName { get; set; } = new TextNode("");
 

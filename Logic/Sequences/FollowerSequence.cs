@@ -39,6 +39,7 @@ namespace AutoPOE.Logic.Sequences
         private DateTime _nextDirectFollowDashAt = DateTime.MinValue;
         private bool _isDirectFollowModeEnabled = false;
         private bool _wasShiftDownLastTick = false;
+        private readonly BuffHeartbeatAction _buffHeartbeatAction = new BuffHeartbeatAction();
 
         public FollowerSequence()
         {
@@ -49,7 +50,6 @@ namespace AutoPOE.Logic.Sequences
                 { TaskNode.TaskNodeType.Transition, new TransitionTaskAction() },
                 { TaskNode.TaskNodeType.ClaimWaypoint, new ClaimWaypointTaskAction() },
                 { TaskNode.TaskNodeType.Combat, new CombatTaskAction() },
-                { TaskNode.TaskNodeType.BuffLead, new BuffLeadTaskAction() },
                 { TaskNode.TaskNodeType.GemLevel, new GemLevelTaskAction() },
                 { TaskNode.TaskNodeType.Ultimatum, new UltimatumTaskAction() },
             };
@@ -66,6 +66,7 @@ namespace AutoPOE.Logic.Sequences
             _lastTargetPosition = Vector2.Zero;
             _lastPlayerPosition = Vector2.Zero;
             _areaTransitions = new Dictionary<uint, Entity>();
+            _buffHeartbeatAction.Reset();
             _hasUsedWP = false;
         }
 
@@ -173,6 +174,12 @@ namespace AutoPOE.Logic.Sequences
                 _tasks.Clear();
                 _followTarget = EntityHelper.GetFollowingTarget();
 
+                if (_buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value))
+                {
+                    _lastPlayerPosition = Core.GameController.Player.GridPosNum;
+                    return;
+                }
+
                 if (_followTarget != null)
                 {
                     var targetPos = _followTarget.GridPosNum;
@@ -260,6 +267,12 @@ namespace AutoPOE.Logic.Sequences
 
             // Cache the current follow target
             _followTarget = EntityHelper.GetFollowingTarget();
+            if (_buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value))
+            {
+                _lastPlayerPosition = Core.GameController.Player.GridPosNum;
+                return;
+            }
+
             if (_followTarget == null && DateTime.Now < _reacquireLeaderUntil)
             {
                 _tasks.Clear();
@@ -348,37 +361,10 @@ namespace AutoPOE.Logic.Sequences
                         }
                     }
 
-                    // Buff check: queue buff tasks for leader and optional extra named player if they are missing link target buff.
-                    if (Core.Settings.Follower.IsBuffEnabled.Value)
-                    {
-                        var configuredBuffName = Core.Settings.Follower.BuffTargetBuffName.Value?.Trim();
-                        if (string.IsNullOrWhiteSpace(configuredBuffName))
-                            configuredBuffName = "critical_link_target";
-
-                        var followTargetHasConfiguredBuff = EntityHelper.HasBuff(_followTarget, configuredBuffName);
-                        if (_followTarget != null && !followTargetHasConfiguredBuff && !HasBuffTaskForTarget(_followTarget.Id))
-                        {
-                            var leaderLabel = !string.IsNullOrWhiteSpace(_followTarget.RenderName) ? _followTarget.RenderName : "leader";
-                            Core.Graphics.DrawText($"[DEBUG] Creating buff task on leader at {targetPos}", new Vector2(100, 260), SharpDX.Color.Green);
-                            _tasks.Add(new TaskNode(targetPos, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.BuffLead, _followTarget.Id, leaderLabel));
-                        }
-
-                        var extraBuffTargetName = Core.Settings.Follower.ExtraBuffTargetName.Value?.Trim();
-                        var extraBuffTarget = EntityHelper.GetPlayerEntityByName(extraBuffTargetName);
-                        var isDifferentFromLeader = _followTarget == null || extraBuffTarget == null || extraBuffTarget.Id != _followTarget.Id;
-
-                        if (extraBuffTarget != null && isDifferentFromLeader && !EntityHelper.HasBuff(extraBuffTarget, configuredBuffName) && !HasBuffTaskForTarget(extraBuffTarget.Id))
-                        {
-                            var extraLabel = !string.IsNullOrWhiteSpace(extraBuffTarget.RenderName) ? extraBuffTarget.RenderName : extraBuffTargetName ?? "extra-target";
-                            Core.Graphics.DrawText($"[DEBUG] Creating buff task on extra target at {extraBuffTarget.GridPosNum}", new Vector2(100, 280), SharpDX.Color.Green);
-                            _tasks.Add(new TaskNode(extraBuffTarget.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.BuffLead, extraBuffTarget.Id, extraLabel));
-                        }
-                    }
-
-                    // Combat check: if player does NOT have the smite buff, look for nearby hostile enemies
-                    // Combat check: only if combat tasks enabled and player does NOT have the mine buff
+                    // Combat check: if leader does NOT have the smite buff, look for nearby hostile enemies.
+                    // This keeps combat pressure up until leader's smite is active.
                     var shouldHoldCloseFollowMovement = false;
-                    if (Core.Settings.Follower.IsCombatEnabled.Value && !Core.GameController.Player.Buffs.Any(buff => buff.Name == "smite_buff"))
+                    if (Core.Settings.Follower.IsCombatEnabled.Value && _followTarget != null && !EntityHelper.HasBuff(_followTarget, "smite_buff"))
                     {
                         var hostileEnemy = EntityHelper.GetNearbyHostileEnemy();
                         var combatLeash = Core.Settings.Follower.CombatLeashDistance.Value;
@@ -633,14 +619,6 @@ namespace AutoPOE.Logic.Sequences
             return false;
         }
 
-        private bool HasBuffTaskForTarget(uint targetEntityId)
-        {
-            return _tasks.Any(task => task.Type == TaskNode.TaskNodeType.BuffLead && task.TargetEntityId == targetEntityId);
-        }
-
-
-
-
         public void Render()
         {
             Core.Graphics.DrawText($"[DEBUG] Leader check: followTarget={(_followTarget != null ? "Found" : "Null")} lastTarget={_lastTargetPosition}", new Vector2(100, 80), SharpDX.Color.Magenta);
@@ -685,7 +663,6 @@ namespace AutoPOE.Logic.Sequences
             Loot,
             ClaimWaypoint,
             Combat,
-            BuffLead,
             GemLevel,
             Ultimatum,
         }
