@@ -73,6 +73,7 @@ namespace AutoPOE.Logic.Actions
 
             var hasBuff = EntityHelper.HasBuff(target, buffName);
             var refreshDue = hasBuff;
+            var sourceBuffName = GetSourceBuffName(buffName);
 
             setCursorPosHuman2(Controls.GetScreenClampedGridPos(target.GridPosNum));
             Thread.Sleep(25);
@@ -84,7 +85,10 @@ namespace AutoPOE.Logic.Actions
 
             Thread.Sleep(35 + random.Next(20));
 
-            var buffApplied = EntityHelper.HasBuff(target, buffName);
+            var targetBuffApplied = EntityHelper.HasBuff(target, buffName);
+            var sourceBuffRefreshed = IsSourceBuffTimerHealthy(sourceBuffName);
+            var buffApplied = targetBuffApplied && sourceBuffRefreshed;
+
             _nextBuffAttemptByTargetEntityId[target.Id] = buffApplied
                 ? DateTime.Now.Add(GetBuffRefreshInterval())
                 : DateTime.Now.AddMilliseconds(Math.Max(100, Core.Settings.Follower.BotInputFrequency.Value));
@@ -92,9 +96,37 @@ namespace AutoPOE.Logic.Actions
             setNextBotAction(DateTime.Now.AddMilliseconds(Math.Max(25, Core.Settings.Follower.BotInputFrequency.Value)));
 
             var castReason = refreshDue ? "refresh" : "missing";
-            var castResult = buffApplied ? "confirmed" : "pending";
-            Core.Graphics.DrawText($"[DEBUG] Buff heartbeat cast -> {targetLabel} reason={castReason} result={castResult}", new Vector2(100, 280), SharpDX.Color.Green);
+            var castResult = buffApplied ? "confirmed" : "retry";
+            Core.Graphics.DrawText($"[DEBUG] Buff heartbeat cast -> {targetLabel} reason={castReason} result={castResult} target={targetBuffApplied} sourceTimerOK={sourceBuffRefreshed}", new Vector2(100, 280), SharpDX.Color.Green);
             return true;
+        }
+
+        private static string GetSourceBuffName(string targetBuffName)
+        {
+            if (string.IsNullOrWhiteSpace(targetBuffName))
+                return string.Empty;
+
+            return targetBuffName.Replace("target", "source", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsSourceBuffTimerHealthy(string sourceBuffName)
+        {
+            if (string.IsNullOrWhiteSpace(sourceBuffName))
+                return false;
+
+            try
+            {
+                var player = Core.GameController.Player;
+                var sourceBuff = player.Buffs.FirstOrDefault(buff => string.Equals(buff.Name, sourceBuffName, StringComparison.OrdinalIgnoreCase));
+                if (sourceBuff == null)
+                    return false;
+
+                return sourceBuff.Timer > 3f;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static string GetBuffTargetLabel(Entity? target, string fallbackLabel)

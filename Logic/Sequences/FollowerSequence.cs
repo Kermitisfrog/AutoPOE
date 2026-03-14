@@ -246,9 +246,6 @@ namespace AutoPOE.Logic.Sequences
                 var followerPos = Core.GameController.Player.GridPosNum;
                 var targetPos = _followTarget.GridPosNum;
                 var distanceFromFollower = Vector2.Distance(followerPos, targetPos);
-                // Core.Graphics.DrawText($"[DEBUG] Known transitions: {string.Join(", ", _areaTransitions.Values.Select(t => t.RenderName))}", new Vector2(100, 140), SharpDX.Color.Magenta);
-                // Core.Graphics.DrawText($"[DEBUG] Leader found at distance {leaderDist:F0}, ClearPath={Core.Settings.Follower.ClearPathDistance.Value}", new Vector2(100, 140), SharpDX.Color.Cyan);
-
 
                 // We are NOT within clear path distance range of leader. Logic can continue
                 if (distanceFromFollower >= Core.Settings.Follower.ClearPathDistance.Value)
@@ -472,14 +469,10 @@ namespace AutoPOE.Logic.Sequences
             var taskInfo = _tasks?.Count > 0 ? _tasks[0].Type.ToString() : "None";
             var taskCount = _tasks?.Count ?? 0;
             var directFollow = _directFollowAction.IsEnabled ? "ON" : "OFF";
-            var levelableGemCount = GemHelper.GetLevelableGems().Count;
-            var levelUpButtonType = GemHelper.GetLevelUpAllButtonTypeName();
             
             Core.Graphics.DrawText($"Follower: Leader='{Core.Settings.Follower.LeaderName}' Tasks={_tasks?.Count ?? 0} NextDist={dist:F0} TargetDist={targetDist} taskCount={taskCount}", new Vector2(100, 100), SharpDX.Color.White);
             Core.Graphics.DrawText($"LeaderDist={leaderDist:F0} FollowTarget={(_followTarget != null ? "Found" : "Lost")} CurrentTask={taskInfo} CanExecute={canExecute}", new Vector2(100, 120), SharpDX.Color.Yellow);
             Core.Graphics.DrawText($"DirectFollowMode={directFollow} (toggle: Shift)", new Vector2(100, 140), SharpDX.Color.LawnGreen);
-            Core.Graphics.DrawText($"LevelableGems={levelableGemCount}", new Vector2(100, 160), SharpDX.Color.LightSkyBlue);
-            Core.Graphics.DrawText($"LevelUpAllType={levelUpButtonType}", new Vector2(100, 180), SharpDX.Color.LightSkyBlue);
         }
     }
 
