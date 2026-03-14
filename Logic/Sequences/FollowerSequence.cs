@@ -36,10 +36,9 @@ namespace AutoPOE.Logic.Sequences
         private byte[,]? _tiles;
 
         private DateTime _nextBotAction = DateTime.Now;
-        private DateTime _nextDirectFollowDashAt = DateTime.MinValue;
-        private bool _isDirectFollowModeEnabled = false;
-        private bool _wasShiftDownLastTick = false;
         private readonly BuffHeartbeatAction _buffHeartbeatAction = new BuffHeartbeatAction();
+        private readonly DirectFollowAction _directFollowAction = new DirectFollowAction();
+        private readonly WeaponSwapAction _weaponSwapAction = new WeaponSwapAction();
 
         public FollowerSequence()
         {
@@ -58,9 +57,7 @@ namespace AutoPOE.Logic.Sequences
 
         private void ResetPathing()
         {
-            ReleaseMovementKeySafely();
-            _isDirectFollowModeEnabled = false;
-            _wasShiftDownLastTick = false;
+            _directFollowAction.Reset();
             _tasks = new List<TaskNode>();
             _followTarget = null;
             _lastTargetPosition = Vector2.Zero;
@@ -74,8 +71,6 @@ namespace AutoPOE.Logic.Sequences
         {
             try
             {
-                // Failsafe: ensure we are not leaving movement key held after plugin reloads.
-                ReleaseMovementKeySafely();
                 ResetPathing();
                 _reacquireLeaderUntil = DateTime.Now.AddMilliseconds(Core.Settings.Follower.LeaderReacquireDelayMs.Value);
 
@@ -161,60 +156,25 @@ namespace AutoPOE.Logic.Sequences
                 _debugLeaderBranch = "manual-control";
                 return;
             }
-            var isShiftDown = Input.IsKeyDown(Keys.ShiftKey);
-            if (isShiftDown && !_wasShiftDownLastTick)
-            {
-                ToggleDirectFollowMode();
-            }
-            _wasShiftDownLastTick = isShiftDown;
+            _directFollowAction.UpdateToggleState(Input.IsKeyDown(Keys.ShiftKey), _tasks);
 
-            if (_isDirectFollowModeEnabled)
+            if (_directFollowAction.IsEnabled)
             {
-                // Direct follow mode ignores all standard follower task logic.
-                _tasks.Clear();
                 _followTarget = EntityHelper.GetFollowingTarget();
-
-                if (_buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value))
-                {
-                    _lastPlayerPosition = Core.GameController.Player.GridPosNum;
-                    return;
-                }
-
-                if (_followTarget != null)
-                {
-                    var targetPos = _followTarget.GridPosNum;
-                    CursorHelper.SetCursorPosHuman2(Controls.GetScreenClampedGridPos(targetPos));
-                    _lastTargetPosition = targetPos;
-
-                    var followerPos = Core.GameController.Player.GridPosNum;
-                    var leaderDistance = Vector2.Distance(followerPos, targetPos);
-                    if (leaderDistance > Core.Settings.Follower.DashLeaderDistance.Value)
-                        TryDirectFollowDash();
-                }
+                _directFollowAction.HandleTick(
+                    _followTarget,
+                    _tasks,
+                    _random,
+                    CursorHelper.SetCursorPosHuman2,
+                    () => _buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value),
+                    targetPosition => _lastTargetPosition = targetPosition);
 
                 _lastPlayerPosition = Core.GameController.Player.GridPosNum;
                 return;
             }
 
-            // Weapon swap check: if enabled, check if we have the smite buff but no longer have a nearby enemy. If so, swap weapons to reset smite cooldown
-            if (Core.Settings.Follower.IsWeaponSwapEnabled.Value)
-            {
-                // Get the value of the MainHandWeaponType stat from the Player's Stats dictionary and check if it's 4. If so it's trypanaon and we should swap
-                if (Core.GameController.Player.Buffs.Any(buff => buff.Name == "smite_buff") && Core.GameController.Player.Stats.TryGetValue(GameStat.MainHandWeaponType, out int weaponType) && weaponType != 4)
-                {
-                    Input.KeyDown(Core.Settings.Follower.WeaponSwapKey);
-                    Thread.Sleep(_random.Next(15) + 10);
-                    Input.KeyUp(Core.Settings.Follower.WeaponSwapKey);
-                    Thread.Sleep(_random.Next(15) + 10);
-                }
-                else if (!Core.GameController.Player.Buffs.Any(buff => buff.Name == "smite_buff") && Core.GameController.Player.Stats.TryGetValue(GameStat.MainHandWeaponType, out int weaponType2) && weaponType2 == 4)
-                {
-                    Input.KeyDown(Core.Settings.Follower.WeaponSwapKey);
-                    Thread.Sleep(_random.Next(15) + 10);
-                    Input.KeyUp(Core.Settings.Follower.WeaponSwapKey);
-                    Thread.Sleep(_random.Next(15) + 10);
-                }
-            }
+            _weaponSwapAction.TryMaintain(_random);
+
             if (!Core.GameController.Player.IsAlive)
             {
                 // Attempt to revive the player
@@ -468,7 +428,15 @@ namespace AutoPOE.Logic.Sequences
                 _followTarget,
                 () => _nextBotAction,
                 value => _nextBotAction = value,
-                CheckDashTerrain,
+                targetPosition => DashHelper.TryDashTerrain(
+                    targetPosition,
+                    _followTarget,
+                    _tiles,
+                    _numCols,
+                    _numRows,
+                    _random,
+                    value => _nextBotAction = value,
+                    CursorHelper.SetCursorPosHuman2),
                 EntityHelper.GetLootableQuestItem,
                 EntityHelper.GetNearbyHostileEnemy,
                 GemHelper.GetLevelableGems,
@@ -478,145 +446,6 @@ namespace AutoPOE.Logic.Sequences
                 value => _combatCooldownUntil = value);
 
             _taskActions[currentTask.Type].Execute(context, currentTask);
-        }
-
-        private void ToggleDirectFollowMode()
-        {
-            _isDirectFollowModeEnabled = !_isDirectFollowModeEnabled;
-
-            if (_isDirectFollowModeEnabled)
-            {
-                _tasks.Clear();
-                Input.KeyDown(Core.Settings.Follower.MovementKey);
-            }
-            else
-            {
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
-            }
-        }
-
-        private void TryDirectFollowDash()
-        {
-            if (DateTime.Now < _nextDirectFollowDashAt)
-                return;
-
-            Input.KeyDown(Core.Settings.Follower.DashKey);
-            Thread.Sleep(15 + _random.Next(15));
-            Input.KeyUp(Core.Settings.Follower.DashKey);
-            Core.ActionPerformed();
-
-            _nextDirectFollowDashAt = DateTime.Now.AddMilliseconds(Math.Max(25, Core.Settings.Follower.BotInputFrequency.Value));
-        }
-
-        private void ReleaseMovementKeySafely()
-        {
-            try
-            {
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
-            }
-            catch
-            {
-                // Ignore unload/load timing issues where settings/input are not yet available.
-            }
-        }
-
-        private bool CheckDashTerrain(Vector2 targetPosition)
-        {
-            var playerGridPos = Core.GameController.Player.GridPosNum;
-            bool PerformDash(Vector2 dashTarget, string reason)
-            {
-                Core.Graphics.DrawText($"[DEBUG] CheckDashTerrain: dashReason={reason}", new Vector2(10, 340), SharpDX.Color.Lime);
-                _nextBotAction = DateTime.Now.AddMilliseconds(500 + _random.Next(Core.Settings.Follower.BotInputFrequency));
-                CursorHelper.SetCursorPosHuman2(Controls.GetScreenClampedGridPos(dashTarget));
-                Thread.Sleep(50 + _random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyDown(Core.Settings.Follower.DashKey);
-                Thread.Sleep(15 + _random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyUp(Core.Settings.Follower.DashKey);
-
-                // After dash, attempt one move input toward the follow target to keep closing distance.
-                var moveTarget = _followTarget?.GridPosNum ?? dashTarget;
-                CursorHelper.SetCursorPosHuman2(Controls.GetScreenClampedGridPos(moveTarget));
-                Thread.Sleep(30 + _random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyDown(Core.Settings.Follower.MovementKey);
-                Thread.Sleep(20 + _random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
-
-                Core.ActionPerformed();
-                return true;
-            }
-
-            if (_followTarget != null)
-            {
-                var leaderDistance = Vector2.Distance(playerGridPos, _followTarget.GridPosNum);
-                if (leaderDistance > Core.Settings.Follower.DashLeaderDistance.Value)
-                {
-                    return PerformDash(_followTarget.GridPosNum, "leader-distance");
-                }
-            }
-
-            // Debug: show parameters for dash evaluation
-            Core.Graphics.DrawText($"[DEBUG] CheckDashTerrain: player=({playerGridPos.X:F0},{playerGridPos.Y:F0}) target=({targetPosition.X:F0},{targetPosition.Y:F0})", new Vector2(10, 320), SharpDX.Color.Orange);
-            var distance = Vector2.Distance(playerGridPos, targetPosition);
-            var dir = targetPosition - playerGridPos;
-            dir = System.Numerics.Vector2.Normalize(dir);
-
-            var distanceBeforeWall = 0;
-            var distanceInWall = 0;
-            var shouldDash = false;
-            var points = new List<System.Drawing.Point>();
-
-            const int clearThreshold = 30;
-            const int minWallDistance = 3;
-
-            for (var i = 0; i < 300; i++)
-            {
-                var v2Point = playerGridPos + i * dir;
-                var point = new System.Drawing.Point((int)(playerGridPos.X + i * dir.X),
-                    (int)(playerGridPos.Y + i * dir.Y));
-
-                if (points.Contains(point))
-                    continue;
-                if (Vector2.Distance(v2Point, targetPosition) < 2)
-                    break;
-
-                points.Add(point);
-
-                if (point.X < 0 || point.X >= _numCols || point.Y < 0 || point.Y >= _numRows)
-                    break;
-
-                if (_tiles == null)
-                    break;
-                    
-                var tile = _tiles[point.X, point.Y];
-
-                if (tile == 255)
-                {
-                    shouldDash = false;
-                    break;
-                }
-                else if (tile == 2)
-                {
-                    if (shouldDash)
-                        distanceInWall++;
-                    shouldDash = true;
-                }
-                else if (!shouldDash)
-                {
-                    distanceBeforeWall++;
-                    if (distanceBeforeWall > clearThreshold)
-                        break;
-                }
-            }
-
-            if (distanceBeforeWall > clearThreshold || distanceInWall < minWallDistance)
-                shouldDash = false;
-
-            if (shouldDash)
-            {
-                return PerformDash(targetPosition, "terrain");
-            }
-            Core.Graphics.DrawText("[DEBUG] CheckDashTerrain: shouldDash=FALSE", new Vector2(10, 360), SharpDX.Color.Red);
-            return false;
         }
 
         public void Render()
@@ -642,7 +471,7 @@ namespace AutoPOE.Logic.Sequences
             var canExecute = DateTime.Now > _nextBotAction ? "Ready" : "Waiting";
             var taskInfo = _tasks?.Count > 0 ? _tasks[0].Type.ToString() : "None";
             var taskCount = _tasks?.Count ?? 0;
-            var directFollow = _isDirectFollowModeEnabled ? "ON" : "OFF";
+            var directFollow = _directFollowAction.IsEnabled ? "ON" : "OFF";
             var levelableGemCount = GemHelper.GetLevelableGems().Count;
             var levelUpButtonType = GemHelper.GetLevelUpAllButtonTypeName();
             
