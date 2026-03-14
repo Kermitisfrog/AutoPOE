@@ -62,6 +62,12 @@ namespace AutoPOE.Logic.Actions
             if (!_nextBuffAttemptByTargetEntityId.ContainsKey(target.Id))
                 _nextBuffAttemptByTargetEntityId[target.Id] = DateTime.Now;
 
+            // If the buff is already missing, bypass the cooldown so we recast as soon as we're in range.
+            // This recovers from buff drops caused by task interruptions (combat, transitions, gem leveling, etc.).
+            var hasBuff = EntityHelper.HasBuff(target, buffName);
+            if (!hasBuff)
+                _nextBuffAttemptByTargetEntityId[target.Id] = DateTime.Now;
+
             var now = DateTime.Now;
             if (now < _nextBuffAttemptByTargetEntityId[target.Id])
                 return false;
@@ -71,7 +77,6 @@ namespace AutoPOE.Logic.Actions
             if (targetDistance >= Core.Settings.Follower.ClearPathDistance.Value)
                 return false;
 
-            var hasBuff = EntityHelper.HasBuff(target, buffName);
             var refreshDue = hasBuff;
             var sourceBuffName = GetSourceBuffName(buffName);
 
