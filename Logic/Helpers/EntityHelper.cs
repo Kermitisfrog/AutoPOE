@@ -10,6 +10,28 @@ namespace AutoPOE.Logic.Helpers
 {
     public static class EntityHelper
     {
+        private static Entity? FindLootableWorldItem(Func<Entity, WorldItem, bool> predicate)
+        {
+            try
+            {
+                return Core.GameController.EntityListWrapper.Entities
+                    .Where(e => e.Type == EntityType.WorldItem)
+                    .Where(e => e.IsTargetable)
+                    .Select(e => new { Entity = e, WorldItem = e.GetComponent<WorldItem>() })
+                    .Where(x => x.WorldItem != null)
+                    .Select(x => x.Entity)
+                    .FirstOrDefault(e =>
+                    {
+                        var worldItem = e.GetComponent<WorldItem>();
+                        return worldItem != null && predicate(e, worldItem);
+                    });
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static Entity? GetFollowingTarget()
         {
             var leaderName = Core.Settings.Follower.LeaderName.Value?.Trim();
@@ -90,24 +112,50 @@ namespace AutoPOE.Logic.Helpers
 
         public static Entity? GetLootableQuestItem()
         {
-            try
+            return FindLootableWorldItem((_, worldItem) =>
             {
-                return Core.GameController.EntityListWrapper.Entities
-                    .Where(e => e.Type == EntityType.WorldItem)
-                    .Where(e => e.IsTargetable)
-                    .Where(e => e.GetComponent<WorldItem>() != null)
-                    .FirstOrDefault(e =>
-                    {
-                        Entity itemEntity = e.GetComponent<WorldItem>().ItemEntity;
-                        var className = Core.GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName;
-                        var icon = itemEntity.GetComponent<WorldItem>()?.Icon;
-                        return className == "QuestItem" || icon == MapIconsIndex.LootFilterLargeGreenPentagon;
-                    });
-            }
-            catch
-            {
+                Entity itemEntity = worldItem.ItemEntity;
+                var className = Core.GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName;
+                var icon = itemEntity.GetComponent<WorldItem>()?.Icon;
+                return className == "QuestItem" || icon == MapIconsIndex.LootFilterLargeGreenPentagon;
+            });
+        }
+
+        public static Entity? GetLootableQuestItemById(uint? entityId)
+        {
+            if (entityId == null)
                 return null;
-            }
+
+            return FindLootableWorldItem((entity, worldItem) =>
+            {
+                if (entity.Id != entityId.Value)
+                    return false;
+
+                Entity itemEntity = worldItem.ItemEntity;
+                var className = Core.GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName;
+                var icon = itemEntity.GetComponent<WorldItem>()?.Icon;
+                return className == "QuestItem" || icon == MapIconsIndex.LootFilterLargeGreenPentagon;
+            });
+        }
+
+        public static Entity? GetLootableRegularItem()
+        {
+            return FindLootableWorldItem((_, worldItem) =>
+                !worldItem.AllocatedToSomeoneElse &&
+                worldItem.IsPermanentlyAllocated &&
+                worldItem.AllocatedToPlayer != 0);
+        }
+
+        public static Entity? GetLootableRegularItemById(uint? entityId)
+        {
+            if (entityId == null)
+                return null;
+
+            return FindLootableWorldItem((entity, worldItem) =>
+                entity.Id == entityId.Value &&
+                !worldItem.AllocatedToSomeoneElse &&
+                worldItem.IsPermanentlyAllocated &&
+                worldItem.AllocatedToPlayer != 0);
         }
 
         public static Entity? GetNearbyHostileEnemy()

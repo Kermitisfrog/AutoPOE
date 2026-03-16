@@ -67,6 +67,9 @@ namespace AutoPOE
             [Menu("Enable Buff Tasks", "Allow follower to cast buffs on the leader.")]
             public ToggleNode IsBuffEnabled { get; set; } = new ToggleNode(true);
 
+            [Menu("Enable Looting", "Allow follower to create and execute quest and regular item loot tasks.")]
+            public ToggleNode IsLootEnabled { get; set; } = new ToggleNode(true);
+
             [Menu("Buff Key", "Skill hotkey for casting buffs on leader.")]
             public HotkeyNode BuffKey { get; set; } = (HotkeyNode)Keys.Z;
 

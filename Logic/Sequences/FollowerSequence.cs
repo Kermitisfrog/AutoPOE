@@ -46,6 +46,7 @@ namespace AutoPOE.Logic.Sequences
             {
                 { TaskNode.TaskNodeType.Movement, new MovementTaskAction() },
                 { TaskNode.TaskNodeType.Loot, new LootTaskAction() },
+                { TaskNode.TaskNodeType.RegularItemLooting, new LootTaskAction() },
                 { TaskNode.TaskNodeType.Transition, new TransitionTaskAction() },
                 { TaskNode.TaskNodeType.ClaimWaypoint, new ClaimWaypointTaskAction() },
                 { TaskNode.TaskNodeType.Combat, new CombatTaskAction() },
@@ -175,6 +176,12 @@ namespace AutoPOE.Logic.Sequences
 
             _weaponSwapAction.TryMaintain(_random);
 
+            var hasRegularItemLootTask = _tasks.Any(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
+            var isLootEnabled = Core.Settings.Follower.IsLootEnabled.Value;
+
+            if (!isLootEnabled)
+                _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.Loot || t.Type == TaskNode.TaskNodeType.RegularItemLooting);
+
             if (!Core.GameController.Player.IsAlive)
             {
                 // Attempt to revive the player
@@ -250,6 +257,9 @@ namespace AutoPOE.Logic.Sequences
                 // We are NOT within clear path distance range of leader. Logic can continue
                 if (distanceFromFollower >= Core.Settings.Follower.ClearPathDistance.Value)
                 {
+                    if (hasRegularItemLootTask)
+                        _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
+
                     _debugLeaderBranch = "far";
                     // Leader moved VERY far in one frame. Check for transition to use to follow them.
                     var distanceMoved = Vector2.Distance(_lastTargetPosition, targetPos);
@@ -291,17 +301,17 @@ namespace AutoPOE.Logic.Sequences
                             _tasks.RemoveAt(i);
 
                     // Check if we should add quest loot logic. We're close to leader already
-                    var questLoot = EntityHelper.GetLootableQuestItem();
+                    var questLoot = isLootEnabled ? EntityHelper.GetLootableQuestItem() : null;
                     var questLootInRange = questLoot != null &&
                         Vector2.Distance(followerPos, questLoot.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value;
-                    var hasLootTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.Loot) != null;
-                    Core.Graphics.DrawText($"[DEBUG] QuestLoot: Found={(questLoot != null)} InRange={questLootInRange} HasTask={hasLootTask}", new Vector2(100, 210), SharpDX.Color.Yellow);
+                    var hasQuestLootTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.Loot) != null;
+                    Core.Graphics.DrawText($"[DEBUG] QuestLoot: Enabled={isLootEnabled} Found={(questLoot != null)} InRange={questLootInRange} HasTask={hasQuestLootTask}", new Vector2(100, 210), SharpDX.Color.Yellow);
                     if (questLoot != null &&
                         questLootInRange &&
-                        !hasLootTask)
+                        !hasQuestLootTask)
                     {
                         Core.Graphics.DrawText($"[DEBUG] Found quest loot item at {questLoot.GridPosNum}", new Vector2(100, 220), SharpDX.Color.Cyan);
-                        _tasks.Add(new TaskNode(questLoot.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.Loot));
+                        _tasks.Add(new TaskNode(questLoot.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.Loot, questLoot.Id, "quest-loot"));
                     }
 
                     // Check if there's a waypoint nearby (only if not used yet)
@@ -374,6 +384,20 @@ namespace AutoPOE.Logic.Sequences
                         Core.Graphics.DrawText("[DEBUG] Creating gem level task", new Vector2(100, 300), SharpDX.Color.LightSkyBlue);
                         _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.GemLevel));
                     }
+
+                    var hasRegularLootTask = _tasks.Any(I => I.Type == TaskNode.TaskNodeType.RegularItemLooting);
+                    if (isLootEnabled && _tasks.Count == 0 && !hasRegularLootTask)
+                    {
+                        var regularLoot = EntityHelper.GetLootableRegularItem();
+                        var regularLootInRange = regularLoot != null &&
+                            Vector2.Distance(followerPos, regularLoot.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value;
+
+                        if (regularLoot != null && regularLootInRange)
+                        {
+                            Core.Graphics.DrawText($"[DEBUG] Found regular loot item at {regularLoot.GridPosNum}", new Vector2(100, 320), SharpDX.Color.LightGreen);
+                            _tasks.Add(new TaskNode(regularLoot.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.RegularItemLooting, regularLoot.Id, "regular-loot"));
+                        }
+                    }
                 }
                 _lastTargetPosition = targetPos;
             }
@@ -425,6 +449,7 @@ namespace AutoPOE.Logic.Sequences
                 _followTarget,
                 () => _nextBotAction,
                 value => _nextBotAction = value,
+                () => _buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value),
                 targetPosition => DashHelper.TryDashTerrain(
                     targetPosition,
                     _followTarget,
@@ -435,6 +460,9 @@ namespace AutoPOE.Logic.Sequences
                     value => _nextBotAction = value,
                     CursorHelper.SetCursorPosHuman2),
                 EntityHelper.GetLootableQuestItem,
+                EntityHelper.GetLootableQuestItemById,
+                EntityHelper.GetLootableRegularItem,
+                EntityHelper.GetLootableRegularItemById,
                 EntityHelper.GetNearbyHostileEnemy,
                 GemHelper.GetLevelableGems,
                 item => CursorHelper.MouseoverItem(item, _random),
@@ -483,6 +511,7 @@ namespace AutoPOE.Logic.Sequences
             Movement,
             Transition,
             Loot,
+            RegularItemLooting,
             ClaimWaypoint,
             Combat,
             GemLevel,

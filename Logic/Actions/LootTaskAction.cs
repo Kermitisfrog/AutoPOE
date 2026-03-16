@@ -1,6 +1,7 @@
 using AutoPOE.Logic.Sequences;
 using ExileCore;
 using ExileCore.PoEMemory.Components;
+using ExileCore.PoEMemory.MemoryObjects;
 using System;
 using System.Numerics;
 using System.Threading;
@@ -9,23 +10,71 @@ namespace AutoPOE.Logic.Actions
 {
     public sealed class LootTaskAction : IFollowerTaskAction
     {
+        private static string GetLootLabel(TaskNode task)
+        {
+            return task.Type == TaskNode.TaskNodeType.RegularItemLooting ? "regular loot" : "quest loot";
+        }
+
+        private static Entity? ResolveLootTarget(FollowerActionContext context, TaskNode task)
+        {
+            return task.Type switch
+            {
+                TaskNode.TaskNodeType.RegularItemLooting => context.GetLootableRegularItemById(task.TargetEntityId) ?? context.GetLootableRegularItem(),
+                _ => context.GetLootableQuestItemById(task.TargetEntityId) ?? context.GetLootableQuestItem(),
+            };
+        }
+
+        private static bool TryYieldToBuffs(FollowerActionContext context, string lootLabel)
+        {
+            var buffHandled = context.TryMaintainBuffs();
+            if (buffHandled)
+                Core.Graphics.DrawText($"[DEBUG] {lootLabel} interrupted for buff refresh", new Vector2(100, 220), SharpDX.Color.GreenYellow);
+
+            return buffHandled;
+        }
+
         public void Execute(FollowerActionContext context, TaskNode task)
         {
-            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
-            task.AttemptCount++;
-            var questLoot = context.GetLootableQuestItem();
+            var lootLabel = GetLootLabel(task);
 
-            if (questLoot == null || task.AttemptCount > 5)
+            if (!Core.Settings.Follower.IsLootEnabled.Value)
             {
-                Core.Graphics.DrawText($"[DEBUG] Quest loot removed: Found={questLoot != null}, Attempts={task.AttemptCount}", new Vector2(100, 220), SharpDX.Color.Yellow);
                 context.Tasks.RemoveAt(0);
                 return;
             }
 
-            var lootDistance = Vector2.Distance(Core.GameController.Player.GridPosNum, questLoot.GridPosNum);
+            var lootTarget = ResolveLootTarget(context, task);
+
+            if (task.Type == TaskNode.TaskNodeType.RegularItemLooting && context.FollowTarget != null)
+            {
+                var leaderDistance = Vector2.Distance(Core.GameController.Player.GridPosNum, context.FollowTarget.GridPosNum);
+                if (leaderDistance >= Core.Settings.Follower.ClearPathDistance.Value)
+                {
+                    Core.Graphics.DrawText($"[DEBUG] Regular loot canceled: leader distance {leaderDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
+                    context.Tasks.RemoveAt(0);
+                    return;
+                }
+            }
+
+            if (TryYieldToBuffs(context, lootLabel))
+                return;
+
+            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
+            task.AttemptCount++;
+
+            if (lootTarget == null || task.AttemptCount > 5)
+            {
+                Core.Graphics.DrawText($"[DEBUG] {lootLabel} removed: Found={lootTarget != null}, Attempts={task.AttemptCount}", new Vector2(100, 220), SharpDX.Color.Yellow);
+                context.Tasks.RemoveAt(0);
+                return;
+            }
+
+            task.WorldPosition = lootTarget.GridPosNum;
+
+            var lootDistance = Vector2.Distance(Core.GameController.Player.GridPosNum, lootTarget.GridPosNum);
             if (lootDistance >= Core.Settings.Follower.ClearPathDistance.Value)
             {
-                Core.Graphics.DrawText($"[DEBUG] Quest loot out of range: {lootDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
+                Core.Graphics.DrawText($"[DEBUG] {lootLabel} out of range: {lootDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
                 context.Tasks.RemoveAt(0);
                 return;
             }
@@ -33,17 +82,23 @@ namespace AutoPOE.Logic.Actions
             Input.KeyUp(Core.Settings.Follower.MovementKey);
             Thread.Sleep(Core.Settings.Follower.BotInputFrequency);
 
-            var targetInfo = questLoot.GetComponent<Targetable>();
-            Core.Graphics.DrawText($"[DEBUG] Loot attempt {task.AttemptCount}: Targeted={targetInfo?.isTargeted ?? false}, Distance={lootDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
+            if (TryYieldToBuffs(context, lootLabel))
+                return;
+
+            var targetInfo = lootTarget.GetComponent<Targetable>();
+            Core.Graphics.DrawText($"[DEBUG] {lootLabel} attempt {task.AttemptCount}: Targeted={targetInfo?.isTargeted ?? false}, Distance={lootDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
 
             if (targetInfo != null)
             {
                 if (!targetInfo.isTargeted)
                 {
-                    context.MouseoverItem(questLoot);
+                    context.MouseoverItem(lootTarget);
                 }
                 else
                 {
+                    if (TryYieldToBuffs(context, lootLabel))
+                        return;
+
                     Thread.Sleep(25);
                     Input.LeftDown();
                     Thread.Sleep(25 + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
