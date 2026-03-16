@@ -45,7 +45,6 @@ namespace AutoPOE.Logic.Sequences
             _taskActions = new Dictionary<TaskNode.TaskNodeType, IFollowerTaskAction>
             {
                 { TaskNode.TaskNodeType.Movement, new MovementTaskAction() },
-                { TaskNode.TaskNodeType.Loot, new LootTaskAction() },
                 { TaskNode.TaskNodeType.RegularItemLooting, new LootTaskAction() },
                 { TaskNode.TaskNodeType.Transition, new TransitionTaskAction() },
                 { TaskNode.TaskNodeType.ClaimWaypoint, new ClaimWaypointTaskAction() },
@@ -180,7 +179,7 @@ namespace AutoPOE.Logic.Sequences
             var isLootEnabled = Core.Settings.Follower.Items.IsLootEnabled.Value;
 
             if (!isLootEnabled)
-                _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.Loot || t.Type == TaskNode.TaskNodeType.RegularItemLooting);
+                _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
 
             if (!Core.GameController.Player.IsAlive)
             {
@@ -299,16 +298,6 @@ namespace AutoPOE.Logic.Sequences
                     for (var i = _tasks.Count - 1; i >= 0; i--)
                         if (_tasks[i].Type == TaskNode.TaskNodeType.Movement || _tasks[i].Type == TaskNode.TaskNodeType.Transition)
                             _tasks.RemoveAt(i);
-
-                    // Check if we should add quest loot logic. We're close to leader already
-                    var hasQuestLootTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.Loot) != null;
-                    var hasVisibleQuestLoot = isLootEnabled &&
-                        Core.GameController.IngameState.IngameUi.ItemsOnGroundLabelsVisible?.Any(l => l?.ItemOnGround != null) == true;
-                    Core.Graphics.DrawText($"[DEBUG] QuestLoot: Enabled={isLootEnabled} Found={hasVisibleQuestLoot} HasTask={hasQuestLootTask}", new Vector2(100, 210), SharpDX.Color.Yellow);
-                    if (hasVisibleQuestLoot && !hasQuestLootTask)
-                    {
-                        _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Loot));
-                    }
 
                     // Check if there's a waypoint nearby (only if not used yet)
                     if (!_hasUsedWP)
@@ -497,7 +486,6 @@ namespace AutoPOE.Logic.Sequences
         {
             Movement,
             Transition,
-            Loot,
             RegularItemLooting,
             ClaimWaypoint,
             Combat,

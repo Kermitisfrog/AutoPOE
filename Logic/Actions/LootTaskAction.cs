@@ -9,24 +9,17 @@ namespace AutoPOE.Logic.Actions
 {
     public sealed class LootTaskAction : IFollowerTaskAction
     {
-        private static string GetLootLabel(TaskNode task)
-        {
-            return task.Type == TaskNode.TaskNodeType.RegularItemLooting ? "regular loot" : "quest loot";
-        }
-
-        private static bool TryYieldToBuffs(FollowerActionContext context, string lootLabel)
+        private static bool TryYieldToBuffs(FollowerActionContext context)
         {
             var buffHandled = context.TryMaintainBuffs();
             if (buffHandled)
-                Core.Graphics.DrawText($"[DEBUG] {lootLabel} interrupted for buff refresh", new Vector2(100, 220), SharpDX.Color.GreenYellow);
+                Core.Graphics.DrawText("[DEBUG] loot interrupted for buff refresh", new Vector2(100, 220), SharpDX.Color.GreenYellow);
 
             return buffHandled;
         }
 
         public void Execute(FollowerActionContext context, TaskNode task)
         {
-            var lootLabel = GetLootLabel(task);
-
             if (!Core.Settings.Follower.Items.IsLootEnabled.Value)
             {
                 context.Tasks.RemoveAt(0);
@@ -44,7 +37,7 @@ namespace AutoPOE.Logic.Actions
                 }
             }
 
-            if (TryYieldToBuffs(context, lootLabel))
+            if (TryYieldToBuffs(context))
                 return;
 
             context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
@@ -52,7 +45,7 @@ namespace AutoPOE.Logic.Actions
 
             if (task.AttemptCount > 5)
             {
-                Core.Graphics.DrawText($"[DEBUG] {lootLabel} removed: Attempts={task.AttemptCount}", new Vector2(100, 220), SharpDX.Color.Yellow);
+                Core.Graphics.DrawText($"[DEBUG] loot removed: Attempts={task.AttemptCount}", new Vector2(100, 220), SharpDX.Color.Yellow);
                 context.Tasks.RemoveAt(0);
                 return;
             }
@@ -60,11 +53,11 @@ namespace AutoPOE.Logic.Actions
             Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
             Thread.Sleep(Core.Settings.Follower.Movement.BotInputFrequency);
 
-            if (TryYieldToBuffs(context, lootLabel))
+            if (TryYieldToBuffs(context))
                 return;
 
             var clickedLabel = context.ClickClosestVisibleWorldItemLabel();
-            Core.Graphics.DrawText($"[DEBUG] {lootLabel} attempt {task.AttemptCount}: ClickedClosestVisibleWorldLabel={clickedLabel}", new Vector2(100, 220), SharpDX.Color.Yellow);
+            Core.Graphics.DrawText($"[DEBUG] loot attempt {task.AttemptCount}: ClickedClosestVisibleWorldLabel={clickedLabel}", new Vector2(100, 220), SharpDX.Color.Yellow);
 
             if (clickedLabel)
             {
