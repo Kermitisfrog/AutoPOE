@@ -301,17 +301,13 @@ namespace AutoPOE.Logic.Sequences
                             _tasks.RemoveAt(i);
 
                     // Check if we should add quest loot logic. We're close to leader already
-                    var questLoot = isLootEnabled ? EntityHelper.GetLootableQuestItem() : null;
-                    var questLootInRange = questLoot != null &&
-                        Vector2.Distance(followerPos, questLoot.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value;
                     var hasQuestLootTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.Loot) != null;
-                    Core.Graphics.DrawText($"[DEBUG] QuestLoot: Enabled={isLootEnabled} Found={(questLoot != null)} InRange={questLootInRange} HasTask={hasQuestLootTask}", new Vector2(100, 210), SharpDX.Color.Yellow);
-                    if (questLoot != null &&
-                        questLootInRange &&
-                        !hasQuestLootTask)
+                    var hasVisibleQuestLoot = isLootEnabled &&
+                        Core.GameController.IngameState.IngameUi.ItemsOnGroundLabelsVisible?.Any(l => l?.ItemOnGround != null) == true;
+                    Core.Graphics.DrawText($"[DEBUG] QuestLoot: Enabled={isLootEnabled} Found={hasVisibleQuestLoot} HasTask={hasQuestLootTask}", new Vector2(100, 210), SharpDX.Color.Yellow);
+                    if (hasVisibleQuestLoot && !hasQuestLootTask)
                     {
-                        Core.Graphics.DrawText($"[DEBUG] Found quest loot item at {questLoot.GridPosNum}", new Vector2(100, 220), SharpDX.Color.Cyan);
-                        _tasks.Add(new TaskNode(questLoot.GridPosNum, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Loot, questLoot.Id, "quest-loot"));
+                        _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Loot));
                     }
 
                     // Check if there's a waypoint nearby (only if not used yet)
@@ -386,17 +382,12 @@ namespace AutoPOE.Logic.Sequences
                     }
 
                     var hasRegularLootTask = _tasks.Any(I => I.Type == TaskNode.TaskNodeType.RegularItemLooting);
-                    if (isLootEnabled && _tasks.Count == 0 && !hasRegularLootTask)
+                    var hasVisibleRegularLoot = isLootEnabled &&
+                        Core.GameController.IngameState.IngameUi.ItemsOnGroundLabelsVisible?.Any(l => l?.ItemOnGround != null) == true;
+                    if (hasVisibleRegularLoot && _tasks.Count == 0 && !hasRegularLootTask)
                     {
-                        var regularLoot = EntityHelper.GetLootableRegularItem();
-                        var regularLootInRange = regularLoot != null &&
-                            Vector2.Distance(followerPos, regularLoot.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value;
-
-                        if (regularLoot != null && regularLootInRange)
-                        {
-                            Core.Graphics.DrawText($"[DEBUG] Found regular loot item at {regularLoot.GridPosNum}", new Vector2(100, 320), SharpDX.Color.LightGreen);
-                            _tasks.Add(new TaskNode(regularLoot.GridPosNum, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.RegularItemLooting, regularLoot.Id, "regular-loot"));
-                        }
+                        Core.Graphics.DrawText("[DEBUG] Found regular loot item, creating task", new Vector2(100, 320), SharpDX.Color.LightGreen);
+                        _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.RegularItemLooting));
                     }
                 }
                 _lastTargetPosition = targetPos;
@@ -459,13 +450,9 @@ namespace AutoPOE.Logic.Sequences
                     _random,
                     value => _nextBotAction = value,
                     CursorHelper.SetCursorPosHuman2),
-                EntityHelper.GetLootableQuestItem,
-                EntityHelper.GetLootableQuestItemById,
-                EntityHelper.GetLootableRegularItem,
-                EntityHelper.GetLootableRegularItemById,
                 EntityHelper.GetNearbyHostileEnemy,
                 GemHelper.GetLevelableGems,
-                item => CursorHelper.ClickVisibleItemLabel(item, _random),
+                () => CursorHelper.ClickClosestVisibleWorldItemLabel(_random, _followTarget?.GridPosNum),
                 element => CursorHelper.ClickLevelableGem(element, _random),
                 CursorHelper.SetCursorPosHuman2,
                 value => _combatCooldownUntil = value);

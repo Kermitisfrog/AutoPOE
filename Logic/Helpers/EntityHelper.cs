@@ -2,7 +2,6 @@ using ExileCore;
 using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Enums;
-using ExileCore.Shared.Helpers;
 using System;
 using System.Linq;
 
@@ -10,56 +9,31 @@ namespace AutoPOE.Logic.Helpers
 {
     public static class EntityHelper
     {
-        private static Entity? FindLootableWorldItem(Func<Entity, WorldItem, bool> predicate)
-        {
-            try
-            {
-                var visibleGroundLabels = Core.GameController.IngameState.IngameUi.ItemsOnGroundLabelsVisible;
-                if (visibleGroundLabels == null)
-                    return null;
-
-                return visibleGroundLabels
-                    .Select(label => label?.ItemOnGround)
-                    .Where(e => e != null && e.Type == EntityType.WorldItem && e.IsTargetable)
-                    .Select(e => new { Entity = e!, WorldItem = e!.GetComponent<WorldItem>() })
-                    .Where(x => x.WorldItem != null)
-                    .Select(x => x.Entity)
-                    .FirstOrDefault(e =>
-                    {
-                        var worldItem = e.GetComponent<WorldItem>();
-                        return worldItem != null && predicate(e, worldItem);
-                    });
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
         public static Entity? GetFollowingTarget()
         {
             var leaderName = Core.Settings.Follower.Movement.LeaderName.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(leaderName))
+                return null;
+
             return GetPlayerEntityByName(leaderName);
         }
 
-        public static Entity? GetPlayerEntityByName(string? playerNameToFind)
+        public static Entity? GetPlayerEntityByName(string playerName)
         {
-            if (string.IsNullOrEmpty(playerNameToFind))
+            if (string.IsNullOrWhiteSpace(playerName))
                 return null;
-
-            var playerNameLower = playerNameToFind.ToLowerInvariant();
 
             try
             {
-                // During/after zone transitions some player entities can have temporarily invalid components.
-                // Iterate defensively so one bad entity does not prevent reacquiring the actual leader.
-                foreach (var playerEntity in Core.GameController.EntityListWrapper.Entities.Where(x => x.Type == EntityType.Player))
+                var playerNameLower = playerName.Trim().ToLowerInvariant();
+
+                foreach (var playerEntity in Core.GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Player])
                 {
                     try
                     {
                         var playerComponent = playerEntity.GetComponent<Player>();
-                        var playerName = playerComponent?.PlayerName;
-                        if (!string.IsNullOrEmpty(playerName) && playerName.ToLowerInvariant() == playerNameLower)
+                        var resolvedName = playerComponent?.PlayerName;
+                        if (!string.IsNullOrEmpty(resolvedName) && resolvedName.ToLowerInvariant() == playerNameLower)
                             return playerEntity;
 
                         var renderName = playerEntity.RenderName;
@@ -68,7 +42,7 @@ namespace AutoPOE.Logic.Helpers
                     }
                     catch
                     {
-                        // Ignore malformed entities and continue searching.
+                        // Skip malformed entities and continue searching.
                     }
                 }
 
@@ -77,8 +51,8 @@ namespace AutoPOE.Logic.Helpers
                     try
                     {
                         var playerComponent = playerEntity.GetComponent<Player>();
-                        var playerName = playerComponent?.PlayerName;
-                        if (!string.IsNullOrEmpty(playerName) && playerName.ToLowerInvariant() == playerNameLower)
+                        var resolvedName = playerComponent?.PlayerName;
+                        if (!string.IsNullOrEmpty(resolvedName) && resolvedName.ToLowerInvariant() == playerNameLower)
                             return playerEntity;
 
                         var renderName = playerEntity.RenderName;
@@ -87,7 +61,7 @@ namespace AutoPOE.Logic.Helpers
                     }
                     catch
                     {
-                        // Ignore malformed entities and continue searching.
+                        // Skip malformed entities and continue searching.
                     }
                 }
             }
@@ -114,62 +88,14 @@ namespace AutoPOE.Logic.Helpers
             }
         }
 
-        public static Entity? GetLootableQuestItem()
-        {
-            return FindLootableWorldItem((_, worldItem) =>
-            {
-                Entity itemEntity = worldItem.ItemEntity;
-                var className = Core.GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName;
-                var icon = itemEntity.GetComponent<WorldItem>()?.Icon;
-                return className == "QuestItem" || icon == MapIconsIndex.LootFilterLargeGreenPentagon;
-            });
-        }
-
-        public static Entity? GetLootableQuestItemById(uint? entityId)
-        {
-            if (entityId == null)
-                return null;
-
-            return FindLootableWorldItem((entity, worldItem) =>
-            {
-                if (entity.Id != entityId.Value)
-                    return false;
-
-                Entity itemEntity = worldItem.ItemEntity;
-                var className = Core.GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName;
-                var icon = itemEntity.GetComponent<WorldItem>()?.Icon;
-                return className == "QuestItem" || icon == MapIconsIndex.LootFilterLargeGreenPentagon;
-            });
-        }
-
-        public static Entity? GetLootableRegularItem()
-        {
-            return FindLootableWorldItem((_, worldItem) =>
-                !worldItem.AllocatedToSomeoneElse &&
-                worldItem.IsPermanentlyAllocated &&
-                worldItem.AllocatedToPlayer != 0);
-        }
-
-        public static Entity? GetLootableRegularItemById(uint? entityId)
-        {
-            if (entityId == null)
-                return null;
-
-            return FindLootableWorldItem((entity, worldItem) =>
-                entity.Id == entityId.Value &&
-                !worldItem.AllocatedToSomeoneElse &&
-                worldItem.IsPermanentlyAllocated &&
-                worldItem.AllocatedToPlayer != 0);
-        }
-
         public static Entity? GetNearbyHostileEnemy()
         {
             try
             {
                 return Core.GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
                     .Where(m => m.IsHostile && m.IsTargetable && m.IsAlive &&
-                               m.GridPosNum.Distance(Core.GameController.Player.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value)
-                    .OrderBy(m => m.GridPosNum.Distance(Core.GameController.Player.GridPosNum))
+                                System.Numerics.Vector2.Distance(m.GridPosNum, Core.GameController.Player.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value)
+                    .OrderBy(m => System.Numerics.Vector2.Distance(m.GridPosNum, Core.GameController.Player.GridPosNum))
                     .FirstOrDefault();
             }
             catch
