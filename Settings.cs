@@ -76,7 +76,7 @@ namespace AutoPOE
             [Menu("Buff Refresh Interval", "Seconds before proactively recasting buff on tracked targets.")]
             public RangeNode<int> BuffRefreshIntervalSeconds { get; set; } = new RangeNode<int>(8, 1, 30);
 
-            [Menu("Extra Buff Target Name", "Optional additional player name to keep linked (PlayerName or RenderName).")]
+            [Menu("Extra Buff Target Names", "Optional comma-separated player names to keep linked (PlayerName or RenderName).")]
             public TextNode ExtraBuffTargetName { get; set; } = new TextNode("");
 
             [Menu("Enable Gem Leveling", "Allow follower to auto level available skill gems.")]

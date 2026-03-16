@@ -32,26 +32,54 @@ namespace AutoPOE.Logic.Actions
             if (string.IsNullOrWhiteSpace(configuredBuffName))
                 configuredBuffName = "critical_link_target";
 
-            var extraBuffTargetName = Core.Settings.Follower.ExtraBuffTargetName.Value?.Trim();
-            var extraBuffTarget = EntityHelper.GetPlayerEntityByName(extraBuffTargetName);
-            if (followTarget != null && extraBuffTarget != null && extraBuffTarget.Id == followTarget.Id)
-                extraBuffTarget = null;
+            var trackedTargetIds = new HashSet<uint>();
+            var buffTargets = new List<(Entity Target, string Label)>();
 
-            var activeTargetIds = new HashSet<uint>();
             if (followTarget != null)
-                activeTargetIds.Add(followTarget.Id);
-            if (extraBuffTarget != null)
-                activeTargetIds.Add(extraBuffTarget.Id);
+            {
+                trackedTargetIds.Add(followTarget.Id);
+                buffTargets.Add((followTarget, GetBuffTargetLabel(followTarget, "leader")));
+            }
 
-            CleanupTrackedBuffTargets(activeTargetIds);
+            foreach (var extraTargetName in GetExtraBuffTargetNames(Core.Settings.Follower.ExtraBuffTargetName.Value))
+            {
+                var extraBuffTarget = EntityHelper.GetPlayerEntityByName(extraTargetName);
+                if (extraBuffTarget == null)
+                    continue;
 
-            if (TryMaintainTarget(followTarget, GetBuffTargetLabel(followTarget, "leader"), configuredBuffName, random, setCursorPosHuman2, setNextBotAction))
-                return true;
+                if (!trackedTargetIds.Add(extraBuffTarget.Id))
+                    continue;
 
-            if (TryMaintainTarget(extraBuffTarget, GetBuffTargetLabel(extraBuffTarget, extraBuffTargetName ?? "extra-target"), configuredBuffName, random, setCursorPosHuman2, setNextBotAction))
-                return true;
+                buffTargets.Add((extraBuffTarget, GetBuffTargetLabel(extraBuffTarget, extraTargetName)));
+            }
+
+            CleanupTrackedBuffTargets(trackedTargetIds);
+
+            foreach (var buffTarget in buffTargets)
+            {
+                if (TryMaintainTarget(buffTarget.Target, buffTarget.Label, configuredBuffName, random, setCursorPosHuman2, setNextBotAction))
+                    return true;
+            }
 
             return false;
+        }
+
+        private static IEnumerable<string> GetExtraBuffTargetNames(string? configuredTargetNames)
+        {
+            if (string.IsNullOrWhiteSpace(configuredTargetNames))
+                return Enumerable.Empty<string>();
+
+            var uniqueNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var targetName in configuredTargetNames.Split(','))
+            {
+                var trimmedName = targetName.Trim();
+                if (string.IsNullOrWhiteSpace(trimmedName))
+                    continue;
+
+                uniqueNames.Add(trimmedName);
+            }
+
+            return uniqueNames;
         }
 
         private bool TryMaintainTarget(Entity? target, string targetLabel, string buffName, Random random, Action<Vector2> setCursorPosHuman2, Action<DateTime> setNextBotAction)
