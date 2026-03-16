@@ -9,13 +9,13 @@ namespace AutoPOE.Logic.Actions
     {
         public void Execute(FollowerActionContext context, TaskNode task)
         {
-            if (!Core.Settings.Follower.IsGemLevelingEnabled.Value)
+            if (!Core.Settings.Follower.Items.IsGemLevelingEnabled.Value)
             {
                 context.Tasks.RemoveAt(0);
                 return;
             }
 
-            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
+            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
             task.AttemptCount++;
 
             var clickableGems = context.GetLevelableGems();

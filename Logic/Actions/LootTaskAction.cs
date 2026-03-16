@@ -37,7 +37,7 @@ namespace AutoPOE.Logic.Actions
         {
             var lootLabel = GetLootLabel(task);
 
-            if (!Core.Settings.Follower.IsLootEnabled.Value)
+            if (!Core.Settings.Follower.Items.IsLootEnabled.Value)
             {
                 context.Tasks.RemoveAt(0);
                 return;
@@ -48,7 +48,7 @@ namespace AutoPOE.Logic.Actions
             if (task.Type == TaskNode.TaskNodeType.RegularItemLooting && context.FollowTarget != null)
             {
                 var leaderDistance = Vector2.Distance(Core.GameController.Player.GridPosNum, context.FollowTarget.GridPosNum);
-                if (leaderDistance >= Core.Settings.Follower.ClearPathDistance.Value)
+                if (leaderDistance >= Core.Settings.Follower.Movement.ClearPathDistance.Value)
                 {
                     Core.Graphics.DrawText($"[DEBUG] Regular loot canceled: leader distance {leaderDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
                     context.Tasks.RemoveAt(0);
@@ -59,7 +59,7 @@ namespace AutoPOE.Logic.Actions
             if (TryYieldToBuffs(context, lootLabel))
                 return;
 
-            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
+            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
             task.AttemptCount++;
 
             if (lootTarget == null || task.AttemptCount > 5)
@@ -72,15 +72,15 @@ namespace AutoPOE.Logic.Actions
             task.WorldPosition = lootTarget.GridPosNum;
 
             var lootDistance = Vector2.Distance(Core.GameController.Player.GridPosNum, lootTarget.GridPosNum);
-            if (lootDistance >= Core.Settings.Follower.ClearPathDistance.Value)
+            if (lootDistance >= Core.Settings.Follower.Movement.ClearPathDistance.Value)
             {
                 Core.Graphics.DrawText($"[DEBUG] {lootLabel} out of range: {lootDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
                 context.Tasks.RemoveAt(0);
                 return;
             }
 
-            Input.KeyUp(Core.Settings.Follower.MovementKey);
-            Thread.Sleep(Core.Settings.Follower.BotInputFrequency);
+            Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
+            Thread.Sleep(Core.Settings.Follower.Movement.BotInputFrequency);
 
             if (TryYieldToBuffs(context, lootLabel))
                 return;
@@ -101,7 +101,7 @@ namespace AutoPOE.Logic.Actions
 
                     Thread.Sleep(25);
                     Input.LeftDown();
-                    Thread.Sleep(25 + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
+                    Thread.Sleep(25 + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
                     Input.LeftUp();
                     Core.ActionPerformed();
                     context.NextBotAction = DateTime.Now.AddSeconds(1);

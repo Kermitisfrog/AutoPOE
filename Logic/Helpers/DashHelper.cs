@@ -18,19 +18,19 @@ namespace AutoPOE.Logic.Helpers
             bool PerformDash(Vector2 dashTarget, string reason)
             {
                 Core.Graphics.DrawText($"[DEBUG] CheckDashTerrain: dashReason={reason}", new Vector2(10, 340), SharpDX.Color.Lime);
-                setNextBotAction(DateTime.Now.AddMilliseconds(500 + random.Next(Core.Settings.Follower.BotInputFrequency)));
+                setNextBotAction(DateTime.Now.AddMilliseconds(500 + random.Next(Core.Settings.Follower.Movement.BotInputFrequency)));
                 setCursorPosHuman2(Controls.GetScreenClampedGridPos(dashTarget));
-                Thread.Sleep(50 + random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyDown(Core.Settings.Follower.DashKey);
-                Thread.Sleep(15 + random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyUp(Core.Settings.Follower.DashKey);
+                Thread.Sleep(50 + random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
+                Input.KeyDown(Core.Settings.Follower.Movement.DashKey);
+                Thread.Sleep(15 + random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
+                Input.KeyUp(Core.Settings.Follower.Movement.DashKey);
 
                 var moveTarget = followTarget?.GridPosNum ?? dashTarget;
                 setCursorPosHuman2(Controls.GetScreenClampedGridPos(moveTarget));
-                Thread.Sleep(30 + random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyDown(Core.Settings.Follower.MovementKey);
-                Thread.Sleep(20 + random.Next(Core.Settings.Follower.BotInputFrequency));
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
+                Thread.Sleep(30 + random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
+                Input.KeyDown(Core.Settings.Follower.Movement.MovementKey);
+                Thread.Sleep(20 + random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
+                Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
 
                 Core.ActionPerformed();
                 return true;
@@ -39,7 +39,7 @@ namespace AutoPOE.Logic.Helpers
             if (followTarget != null)
             {
                 var leaderDistance = Vector2.Distance(playerGridPos, followTarget.GridPosNum);
-                if (leaderDistance > Core.Settings.Follower.DashLeaderDistance.Value)
+                if (leaderDistance > Core.Settings.Follower.Movement.DashLeaderDistance.Value)
                     return PerformDash(followTarget.GridPosNum, "leader-distance");
             }
 

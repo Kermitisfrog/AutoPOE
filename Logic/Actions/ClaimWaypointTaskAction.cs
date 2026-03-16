@@ -14,8 +14,8 @@ namespace AutoPOE.Logic.Actions
             if (Vector2.Distance(Core.GameController.Player.GridPosNum, task.WorldPosition) > 35)
             {
                 var screenPos = Controls.GetScreenClampedGridPos(task.WorldPosition);
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
-                Thread.Sleep(Core.Settings.Follower.BotInputFrequency);
+                Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
+                Thread.Sleep(Core.Settings.Follower.Movement.BotInputFrequency);
                 context.SetCursorPosHuman2(screenPos);
                 Thread.Sleep(100);
                 Input.LeftDown();

@@ -22,7 +22,7 @@ namespace AutoPOE.Logic.Actions
             if (leaderChoice == null)
                 return; // Panel is up but leader hasn't voted yet — stay queued and wait.
 
-            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
+            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
 
             var choiceCenter = leaderChoice.GetClientRect().Center;
             CursorHelper.SetCursorPosHuman2(new Vector2(choiceCenter.X, choiceCenter.Y));

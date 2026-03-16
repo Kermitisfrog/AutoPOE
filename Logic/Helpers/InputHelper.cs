@@ -27,7 +27,7 @@ namespace AutoPOE.Logic.Helpers
                 Input.SetCursorPos(new Vector2(
                     clickPos.X + random.Next(-15, 15) + (int)windowRect.X,
                     clickPos.Y + random.Next(-10, 10) + (int)windowRect.Y));
-                Thread.Sleep(30 + random.Next(Core.Settings.Follower.BotInputFrequency));
+                Thread.Sleep(30 + random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
             }
         }
 

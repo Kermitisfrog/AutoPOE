@@ -12,11 +12,11 @@ namespace AutoPOE.Logic.Actions
         public void Execute(FollowerActionContext context, TaskNode task)
         {
             var taskDistance = Vector2.Distance(Core.GameController.Player.GridPosNum, task.WorldPosition);
-            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.BotInputFrequency.Value * 2 + context.Random.Next(Core.Settings.Follower.BotInputFrequency));
+            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value * 2 + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
             var screenPos = Controls.GetScreenClampedGridPos(task.WorldPosition);
-            if (taskDistance <= Core.Settings.Follower.ClearPathDistance.Value)
+            if (taskDistance <= Core.Settings.Follower.Movement.ClearPathDistance.Value)
             {
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
+                Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
                 context.SetCursorPosHuman2(screenPos);
                 Thread.Sleep(100);
                 Input.LeftDown();
@@ -29,9 +29,9 @@ namespace AutoPOE.Logic.Actions
             {
                 context.SetCursorPosHuman2(screenPos);
                 Thread.Sleep(context.Random.Next(25) + 30);
-                Input.KeyDown(Core.Settings.Follower.MovementKey);
+                Input.KeyDown(Core.Settings.Follower.Movement.MovementKey);
                 Thread.Sleep(context.Random.Next(25) + 30);
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
+                Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
                 Core.ActionPerformed();
             }
 

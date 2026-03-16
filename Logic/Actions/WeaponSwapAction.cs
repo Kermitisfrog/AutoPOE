@@ -11,7 +11,7 @@ namespace AutoPOE.Logic.Actions
     {
         public void TryMaintain(Random random)
         {
-            if (!Core.Settings.Follower.IsWeaponSwapEnabled.Value)
+            if (!Core.Settings.Follower.Combat.IsWeaponSwapEnabled.Value)
                 return;
 
             var player = Core.GameController.Player;
@@ -24,9 +24,9 @@ namespace AutoPOE.Logic.Actions
             if (!shouldSwapToTrypanon && !shouldSwapBack)
                 return;
 
-            Input.KeyDown(Core.Settings.Follower.WeaponSwapKey);
+            Input.KeyDown(Core.Settings.Follower.Combat.WeaponSwapKey);
             Thread.Sleep(random.Next(15) + 10);
-            Input.KeyUp(Core.Settings.Follower.WeaponSwapKey);
+            Input.KeyUp(Core.Settings.Follower.Combat.WeaponSwapKey);
             Thread.Sleep(random.Next(15) + 10);
         }
     }

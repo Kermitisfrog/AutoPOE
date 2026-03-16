@@ -34,7 +34,7 @@ namespace AutoPOE.Logic.Helpers
 
         public static Entity? GetFollowingTarget()
         {
-            var leaderName = Core.Settings.Follower.LeaderName.Value?.Trim();
+            var leaderName = Core.Settings.Follower.Movement.LeaderName.Value?.Trim();
             return GetPlayerEntityByName(leaderName);
         }
 
@@ -164,7 +164,7 @@ namespace AutoPOE.Logic.Helpers
             {
                 return Core.GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
                     .Where(m => m.IsHostile && m.IsTargetable && m.IsAlive &&
-                               m.GridPosNum.Distance(Core.GameController.Player.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value)
+                               m.GridPosNum.Distance(Core.GameController.Player.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value)
                     .OrderBy(m => m.GridPosNum.Distance(Core.GameController.Player.GridPosNum))
                     .FirstOrDefault();
             }

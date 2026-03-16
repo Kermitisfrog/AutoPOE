@@ -22,68 +22,92 @@ namespace AutoPOE
         [Submenu(CollapsedByDefault = true)]
         public class FollowerSettings
         {
-            [Menu("Leader Name", "Name of the player to follow.")]
-            public TextNode LeaderName { get; set; } = new TextNode("");
+            [Submenu(CollapsedByDefault = true)]
+            public MovementSettings Movement { get; set; } = new MovementSettings();
 
-            [Menu("Movement Key", "Skill hotkey for movement (e.g., dash, walk).")]
-            public HotkeyNode MovementKey { get; set; } = (HotkeyNode)Keys.T;
+            [Submenu(CollapsedByDefault = true)]
+            public CombatSettings Combat { get; set; } = new CombatSettings();
 
-            [Menu("Movement Frequency", "Delay in milliseconds between movement inputs.")]
-            public RangeNode<int> BotInputFrequency { get; set; } = new RangeNode<int>(50, 10, 250);
+            [Submenu(CollapsedByDefault = true)]
+            public BuffSettings Buff { get; set; } = new BuffSettings();
 
-            [Menu("Close Path Distance", "Range threshold: close=direct follow, far=pathfind. (Grid coordinates - use smaller values than world pos)")]
-            public RangeNode<int> ClearPathDistance { get; set; } = new RangeNode<int>(100, 10, 500);
+            [Submenu(CollapsedByDefault = true)]
+            public ItemSettings Items { get; set; } = new ItemSettings();
 
-            [Menu("Leader Reacquire Delay", "Time to pause stale tasks after area load while waiting to find leader (ms).")]
-            public RangeNode<int> LeaderReacquireDelayMs { get; set; } = new RangeNode<int>(4000, 0, 10000);
+            public class MovementSettings
+            {
+                [Menu("Leader Name", "Name of the player to follow.")]
+                public TextNode LeaderName { get; set; } = new TextNode("");
 
-            [Menu("Allow Dash", "Allow automated dashing through walls based on terrain.")]
-            public ToggleNode IsDashEnabled { get; set; } = new ToggleNode(true);
+                [Menu("Movement Key", "Skill hotkey for movement (e.g., dash, walk).")]
+                public HotkeyNode MovementKey { get; set; } = (HotkeyNode)Keys.T;
 
-            [Menu("Dash Key", "Key to trigger dash/charge skill.")]
-            public HotkeyNode DashKey { get; set; } = (HotkeyNode)Keys.W;
+                [Menu("Movement Frequency", "Delay in milliseconds between movement inputs.")]
+                public RangeNode<int> BotInputFrequency { get; set; } = new RangeNode<int>(50, 10, 250);
 
-            [Menu("Dash Leader Distance", "Minimum distance to leader before forcing a dash toward leader. (Grid coordinates)")]
-            public RangeNode<int> DashLeaderDistance { get; set; } = new RangeNode<int>(40, 5, 200);
+                [Menu("Close Path Distance", "Range threshold: close=direct follow, far=pathfind. (Grid coordinates - use smaller values than world pos)")]
+                public RangeNode<int> ClearPathDistance { get; set; } = new RangeNode<int>(100, 10, 500);
 
-            [Menu("Enable Combat Tasks", "Allow follower to create combat tasks when close to leader.")]
-            public ToggleNode IsCombatEnabled { get; set; } = new ToggleNode(true);
+                [Menu("Leader Reacquire Delay", "Time to pause stale tasks after area load while waiting to find leader (ms).")]
+                public RangeNode<int> LeaderReacquireDelayMs { get; set; } = new RangeNode<int>(4000, 0, 10000);
 
-            [Menu("Combat Reengage Delay", "Cooldown after combat task ends before reattempting (ms).")]
-            public RangeNode<int> CombatReengageDelay { get; set; } = new RangeNode<int>(1500, 0, 5000);
+                [Menu("Allow Dash", "Allow automated dashing through walls based on terrain.")]
+                public ToggleNode IsDashEnabled { get; set; } = new ToggleNode(true);
 
-            [Menu("Combat Leash Distance", "Max enemy distance from leader to allow combat task. (Grid coordinates)")]
-            public RangeNode<int> CombatLeashDistance { get; set; } = new RangeNode<int>(60, 20, 200);
+                [Menu("Dash Key", "Key to trigger dash/charge skill.")]
+                public HotkeyNode DashKey { get; set; } = (HotkeyNode)Keys.W;
 
-            [Menu("Combat Key", "Skill hotkey for attacking enemies while following.")]
-            public HotkeyNode CombatKey { get; set; } = (HotkeyNode)Keys.LButton;
+                [Menu("Dash Leader Distance", "Minimum distance to leader before forcing a dash toward leader. (Grid coordinates)")]
+                public RangeNode<int> DashLeaderDistance { get; set; } = new RangeNode<int>(40, 5, 200);
+            }
 
-            [Menu("Enable Weapon Swap", "Allow follower to weapon swap before combat tasks.")]
-            public ToggleNode IsWeaponSwapEnabled { get; set; } = new ToggleNode(true);
+            public class CombatSettings
+            {
+                [Menu("Enable Combat Tasks", "Allow follower to create combat tasks when close to leader.")]
+                public ToggleNode IsCombatEnabled { get; set; } = new ToggleNode(true);
 
-            [Menu("Weapon Swap Key", "Key to trigger weapon swap.")]
-            public HotkeyNode WeaponSwapKey { get; set; } = (HotkeyNode)Keys.X;
+                [Menu("Combat Reengage Delay", "Cooldown after combat task ends before reattempting (ms).")]
+                public RangeNode<int> CombatReengageDelay { get; set; } = new RangeNode<int>(1500, 0, 5000);
 
-            [Menu("Enable Buff Tasks", "Allow follower to cast buffs on the leader.")]
-            public ToggleNode IsBuffEnabled { get; set; } = new ToggleNode(true);
+                [Menu("Combat Leash Distance", "Max enemy distance from leader to allow combat task. (Grid coordinates)")]
+                public RangeNode<int> CombatLeashDistance { get; set; } = new RangeNode<int>(60, 20, 200);
 
-            [Menu("Enable Looting", "Allow follower to create and execute quest and regular item loot tasks.")]
-            public ToggleNode IsLootEnabled { get; set; } = new ToggleNode(true);
+                [Menu("Combat Key", "Skill hotkey for attacking enemies while following.")]
+                public HotkeyNode CombatKey { get; set; } = (HotkeyNode)Keys.LButton;
 
-            [Menu("Buff Key", "Skill hotkey for casting buffs on leader.")]
-            public HotkeyNode BuffKey { get; set; } = (HotkeyNode)Keys.Z;
+                [Menu("Enable Weapon Swap", "Allow follower to weapon swap before combat tasks.")]
+                public ToggleNode IsWeaponSwapEnabled { get; set; } = new ToggleNode(true);
 
-            [Menu("Buff Target Name", "Buff name to check on target before queuing buff task (e.g., critical_link_target).")]
-            public TextNode BuffTargetBuffName { get; set; } = new TextNode("critical_link_target");
+                [Menu("Weapon Swap Key", "Key to trigger weapon swap.")]
+                public HotkeyNode WeaponSwapKey { get; set; } = (HotkeyNode)Keys.X;
+            }
 
-            [Menu("Buff Refresh Interval", "Seconds before proactively recasting buff on tracked targets.")]
-            public RangeNode<int> BuffRefreshIntervalSeconds { get; set; } = new RangeNode<int>(8, 1, 30);
+            public class BuffSettings
+            {
+                [Menu("Enable Buff Tasks", "Allow follower to cast buffs on the leader.")]
+                public ToggleNode IsBuffEnabled { get; set; } = new ToggleNode(true);
 
-            [Menu("Extra Buff Target Names", "Optional comma-separated player names to keep linked (PlayerName or RenderName).")]
-            public TextNode ExtraBuffTargetName { get; set; } = new TextNode("");
+                [Menu("Buff Key", "Skill hotkey for casting buffs on leader.")]
+                public HotkeyNode BuffKey { get; set; } = (HotkeyNode)Keys.Z;
 
-            [Menu("Enable Gem Leveling", "Allow follower to auto level available skill gems.")]
-            public ToggleNode IsGemLevelingEnabled { get; set; } = new ToggleNode(true);
+                [Menu("Buff Target Name", "Buff name to check on target before queuing buff task (e.g., critical_link_target).")]
+                public TextNode BuffTargetBuffName { get; set; } = new TextNode("critical_link_target");
+
+                [Menu("Buff Refresh Interval", "Seconds before proactively recasting buff on tracked targets.")]
+                public RangeNode<int> BuffRefreshIntervalSeconds { get; set; } = new RangeNode<int>(8, 1, 30);
+
+                [Menu("Extra Buff Target Names", "Optional comma-separated player names to keep linked (PlayerName or RenderName).")]
+                public TextNode ExtraBuffTargetName { get; set; } = new TextNode("");
+            }
+
+            public class ItemSettings
+            {
+                [Menu("Enable Looting", "Allow follower to create and execute quest and regular item loot tasks.")]
+                public ToggleNode IsLootEnabled { get; set; } = new ToggleNode(true);
+
+                [Menu("Enable Gem Leveling", "Allow follower to auto level available skill gems.")]
+                public ToggleNode IsGemLevelingEnabled { get; set; } = new ToggleNode(true);
+            }
         }
     }
 }

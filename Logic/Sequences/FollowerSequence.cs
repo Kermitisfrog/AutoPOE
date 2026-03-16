@@ -73,7 +73,7 @@ namespace AutoPOE.Logic.Sequences
             try
             {
                 ResetPathing();
-                _reacquireLeaderUntil = DateTime.Now.AddMilliseconds(Core.Settings.Follower.LeaderReacquireDelayMs.Value);
+                _reacquireLeaderUntil = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.LeaderReacquireDelayMs.Value);
 
                 // Load initial transitions
                 var initByType = Core.GameController.EntityListWrapper.ValidEntitiesByType;
@@ -177,7 +177,7 @@ namespace AutoPOE.Logic.Sequences
             _weaponSwapAction.TryMaintain(_random);
 
             var hasRegularItemLootTask = _tasks.Any(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
-            var isLootEnabled = Core.Settings.Follower.IsLootEnabled.Value;
+            var isLootEnabled = Core.Settings.Follower.Items.IsLootEnabled.Value;
 
             if (!isLootEnabled)
                 _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.Loot || t.Type == TaskNode.TaskNodeType.RegularItemLooting);
@@ -243,7 +243,7 @@ namespace AutoPOE.Logic.Sequences
             if (_followTarget == null && DateTime.Now < _reacquireLeaderUntil)
             {
                 _tasks.Clear();
-                _nextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.BotInputFrequency.Value);
+                _nextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value);
                 _lastPlayerPosition = Core.GameController.Player.GridPosNum;
                 return;
             }
@@ -255,7 +255,7 @@ namespace AutoPOE.Logic.Sequences
                 var distanceFromFollower = Vector2.Distance(followerPos, targetPos);
 
                 // We are NOT within clear path distance range of leader. Logic can continue
-                if (distanceFromFollower >= Core.Settings.Follower.ClearPathDistance.Value)
+                if (distanceFromFollower >= Core.Settings.Follower.Movement.ClearPathDistance.Value)
                 {
                     if (hasRegularItemLootTask)
                         _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
@@ -263,14 +263,14 @@ namespace AutoPOE.Logic.Sequences
                     _debugLeaderBranch = "far";
                     // Leader moved VERY far in one frame. Check for transition to use to follow them.
                     var distanceMoved = Vector2.Distance(_lastTargetPosition, targetPos);
-                    _debugFarDetails = $"lastTargetZero={(_lastTargetPosition == Vector2.Zero)} distMoved={distanceMoved:F0} clearPath={Core.Settings.Follower.ClearPathDistance.Value}";
-                    if (_lastTargetPosition != Vector2.Zero && distanceMoved > Core.Settings.Follower.ClearPathDistance.Value)
+                    _debugFarDetails = $"lastTargetZero={(_lastTargetPosition == Vector2.Zero)} distMoved={distanceMoved:F0} clearPath={Core.Settings.Follower.Movement.ClearPathDistance.Value}";
+                    if (_lastTargetPosition != Vector2.Zero && distanceMoved > Core.Settings.Follower.Movement.ClearPathDistance.Value)
                     {
                         _debugLeaderBranch = "far/transition";
                         var transition = _areaTransitions.Values.OrderBy(I => Vector2.Distance(_lastTargetPosition, I.GridPosNum)).FirstOrDefault();
                         var transitionDist = transition != null ? Vector2.Distance(_lastTargetPosition, transition.GridPosNum) : -1;
                         _debugFarDetails += $" transitionFound={(transition != null)} transitionDist={transitionDist:F0}";
-                        if (transition != null && transitionDist < Core.Settings.Follower.ClearPathDistance.Value)
+                        if (transition != null && transitionDist < Core.Settings.Follower.Movement.ClearPathDistance.Value)
                         {
                             _tasks.Add(new TaskNode(transition.GridPosNum, 200, TaskNode.TaskNodeType.Transition));
                             _debugFarDetails += " taskAdded=true";
@@ -289,7 +289,7 @@ namespace AutoPOE.Logic.Sequences
                         if (existingMoveTask != null)
                             existingMoveTask.WorldPosition = targetPos;
                         else
-                            _tasks.Insert(0, new TaskNode(targetPos, Core.Settings.Follower.ClearPathDistance.Value));
+                            _tasks.Insert(0, new TaskNode(targetPos, Core.Settings.Follower.Movement.ClearPathDistance.Value));
                     }
                 }
                 else
@@ -303,7 +303,7 @@ namespace AutoPOE.Logic.Sequences
                     // Check if we should add quest loot logic. We're close to leader already
                     var questLoot = isLootEnabled ? EntityHelper.GetLootableQuestItem() : null;
                     var questLootInRange = questLoot != null &&
-                        Vector2.Distance(followerPos, questLoot.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value;
+                        Vector2.Distance(followerPos, questLoot.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value;
                     var hasQuestLootTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.Loot) != null;
                     Core.Graphics.DrawText($"[DEBUG] QuestLoot: Enabled={isLootEnabled} Found={(questLoot != null)} InRange={questLootInRange} HasTask={hasQuestLootTask}", new Vector2(100, 210), SharpDX.Color.Yellow);
                     if (questLoot != null &&
@@ -311,7 +311,7 @@ namespace AutoPOE.Logic.Sequences
                         !hasQuestLootTask)
                     {
                         Core.Graphics.DrawText($"[DEBUG] Found quest loot item at {questLoot.GridPosNum}", new Vector2(100, 220), SharpDX.Color.Cyan);
-                        _tasks.Add(new TaskNode(questLoot.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.Loot, questLoot.Id, "quest-loot"));
+                        _tasks.Add(new TaskNode(questLoot.GridPosNum, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Loot, questLoot.Id, "quest-loot"));
                     }
 
                     // Check if there's a waypoint nearby (only if not used yet)
@@ -319,22 +319,22 @@ namespace AutoPOE.Logic.Sequences
                     {
                         var waypoint = Core.GameController.EntityListWrapper.Entities.FirstOrDefault(I =>
                             I.Type == EntityType.Waypoint &&
-                            Vector2.Distance(followerPos, I.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value);
+                            Vector2.Distance(followerPos, I.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value);
 
                         if (waypoint != null)
                         {
                             _hasUsedWP = true;
-                            _tasks.Add(new TaskNode(waypoint.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.ClaimWaypoint));
+                            _tasks.Add(new TaskNode(waypoint.GridPosNum, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.ClaimWaypoint));
                         }
                     }
 
                     // Combat check: if leader does NOT have the smite buff, look for nearby hostile enemies.
                     // This keeps combat pressure up until leader's smite is active.
                     var shouldHoldCloseFollowMovement = false;
-                    if (Core.Settings.Follower.IsCombatEnabled.Value && _followTarget != null && !EntityHelper.HasBuff(_followTarget, "smite_buff"))
+                    if (Core.Settings.Follower.Combat.IsCombatEnabled.Value && _followTarget != null && !EntityHelper.HasBuff(_followTarget, "smite_buff"))
                     {
                         var hostileEnemy = EntityHelper.GetNearbyHostileEnemy();
-                        var combatLeash = Core.Settings.Follower.CombatLeashDistance.Value;
+                        var combatLeash = Core.Settings.Follower.Combat.CombatLeashDistance.Value;
                         var enemyDistToLeader = hostileEnemy != null ? Vector2.Distance(hostileEnemy.GridPosNum, targetPos) : float.MaxValue;
                         var combatCooldownActive = DateTime.Now < _combatCooldownUntil;
 
@@ -348,7 +348,7 @@ namespace AutoPOE.Logic.Sequences
                             {
                                 Core.Graphics.DrawText($"[DEBUG] Found hostile enemy for combat at {hostileEnemy.GridPosNum}", new Vector2(100, 240), SharpDX.Color.Red);
                                 // Insert combat at the front so close-follow movement does not starve combat execution.
-                                _tasks.Insert(0, new TaskNode(hostileEnemy.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.Combat));
+                                _tasks.Insert(0, new TaskNode(hostileEnemy.GridPosNum, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Combat));
                             }
                             else if (existingCombatTaskIndex > 0)
                             {
@@ -379,10 +379,10 @@ namespace AutoPOE.Logic.Sequences
 
                     // Gem level check: if enabled, create a gem level task on the leader (if we have levelable gems and no existing gem level task)
                     var hasGemLevelTask = _tasks.FirstOrDefault(I => I.Type == TaskNode.TaskNodeType.GemLevel) != null;
-                    if (Core.Settings.Follower.IsGemLevelingEnabled.Value && !hasGemLevelTask && GemHelper.GetLevelableGems().Count > 0)
+                    if (Core.Settings.Follower.Items.IsGemLevelingEnabled.Value && !hasGemLevelTask && GemHelper.GetLevelableGems().Count > 0)
                     {
                         Core.Graphics.DrawText("[DEBUG] Creating gem level task", new Vector2(100, 300), SharpDX.Color.LightSkyBlue);
-                        _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.GemLevel));
+                        _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.GemLevel));
                     }
 
                     var hasRegularLootTask = _tasks.Any(I => I.Type == TaskNode.TaskNodeType.RegularItemLooting);
@@ -390,12 +390,12 @@ namespace AutoPOE.Logic.Sequences
                     {
                         var regularLoot = EntityHelper.GetLootableRegularItem();
                         var regularLootInRange = regularLoot != null &&
-                            Vector2.Distance(followerPos, regularLoot.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value;
+                            Vector2.Distance(followerPos, regularLoot.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value;
 
                         if (regularLoot != null && regularLootInRange)
                         {
                             Core.Graphics.DrawText($"[DEBUG] Found regular loot item at {regularLoot.GridPosNum}", new Vector2(100, 320), SharpDX.Color.LightGreen);
-                            _tasks.Add(new TaskNode(regularLoot.GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.RegularItemLooting, regularLoot.Id, "regular-loot"));
+                            _tasks.Add(new TaskNode(regularLoot.GridPosNum, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.RegularItemLooting, regularLoot.Id, "regular-loot"));
                         }
                     }
                 }
@@ -408,14 +408,14 @@ namespace AutoPOE.Logic.Sequences
                 Core.Graphics.DrawText($"[DEBUG] Leader lost, searching for transitions. Known transitions: {_areaTransitions.Count}", new Vector2(100, 140), SharpDX.Color.Magenta);
                 
                 var transOptions = _areaTransitions.Values
-                    .Where(I => Vector2.Distance(_lastTargetPosition, I.GridPosNum) < Core.Settings.Follower.ClearPathDistance.Value)
+                    .Where(I => Vector2.Distance(_lastTargetPosition, I.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value)
                     .OrderBy(I => Vector2.Distance(_lastTargetPosition, I.GridPosNum))
                     .ToArray();
                 
                 Core.Graphics.DrawText($"[DEBUG] Transitions in range: {transOptions.Length}", new Vector2(100, 160), SharpDX.Color.Magenta);
                 
                 if (transOptions.Length > 0)
-                    _tasks.Add(new TaskNode(transOptions[_random.Next(transOptions.Length)].GridPosNum, Core.Settings.Follower.ClearPathDistance.Value, TaskNode.TaskNodeType.Transition));
+                    _tasks.Add(new TaskNode(transOptions[_random.Next(transOptions.Length)].GridPosNum, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Transition));
             }
 
             // Execute tasks
@@ -434,7 +434,7 @@ namespace AutoPOE.Logic.Sequences
 
             // We are using a same map transition and have moved significantly since last tick. Mark the transition task as done.
             if (currentTask.Type == TaskNode.TaskNodeType.Transition &&
-                playerDistanceMoved >= Core.Settings.Follower.ClearPathDistance.Value)
+                playerDistanceMoved >= Core.Settings.Follower.Movement.ClearPathDistance.Value)
             {
                 _tasks.RemoveAt(0);
                 if (_tasks.Count > 0)
@@ -480,7 +480,7 @@ namespace AutoPOE.Logic.Sequences
             Core.Graphics.DrawText($"[DEBUG] Far details: {_debugFarDetails}", new Vector2(100, 40), SharpDX.Color.Magenta);
             var followerPos = Core.GameController.Player.GridPosNum;
             var leaderDist = _followTarget != null ? Vector2.Distance(followerPos, _followTarget.GridPosNum) : 0;
-            // Core.Graphics.DrawText($"[DEBUG] Leader found at distance {leaderDist:F0}, ClearPath={Core.Settings.Follower.ClearPathDistance.Value}", new Vector2(100, 140), SharpDX.Color.Cyan);
+            // Core.Graphics.DrawText($"[DEBUG] Leader found at distance {leaderDist:F0}, ClearPath={Core.Settings.Follower.Movement.ClearPathDistance.Value}", new Vector2(100, 140), SharpDX.Color.Cyan);
             if (_tasks != null && _tasks.Count > 1)
                 for (var i = 1; i < _tasks.Count; i++)
                 {
@@ -498,7 +498,7 @@ namespace AutoPOE.Logic.Sequences
             var taskCount = _tasks?.Count ?? 0;
             var directFollow = _directFollowAction.IsEnabled ? "ON" : "OFF";
             
-            Core.Graphics.DrawText($"Follower: Leader='{Core.Settings.Follower.LeaderName}' Tasks={_tasks?.Count ?? 0} NextDist={dist:F0} TargetDist={targetDist} taskCount={taskCount}", new Vector2(100, 100), SharpDX.Color.White);
+            Core.Graphics.DrawText($"Follower: Leader='{Core.Settings.Follower.Movement.LeaderName}' Tasks={_tasks?.Count ?? 0} NextDist={dist:F0} TargetDist={targetDist} taskCount={taskCount}", new Vector2(100, 100), SharpDX.Color.White);
             Core.Graphics.DrawText($"LeaderDist={leaderDist:F0} FollowTarget={(_followTarget != null ? "Found" : "Lost")} CurrentTask={taskInfo} CanExecute={canExecute}", new Vector2(100, 120), SharpDX.Color.Yellow);
             Core.Graphics.DrawText($"DirectFollowMode={directFollow} (toggle: Shift)", new Vector2(100, 140), SharpDX.Color.LawnGreen);
         }

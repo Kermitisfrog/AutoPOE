@@ -21,7 +21,7 @@ namespace AutoPOE.Logic.Actions
         {
             try
             {
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
+                Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
             }
             catch
             {
@@ -59,7 +59,7 @@ namespace AutoPOE.Logic.Actions
 
             var followerPos = Core.GameController.Player.GridPosNum;
             var leaderDistance = Vector2.Distance(followerPos, targetPos);
-            if (leaderDistance > Core.Settings.Follower.DashLeaderDistance.Value)
+            if (leaderDistance > Core.Settings.Follower.Movement.DashLeaderDistance.Value)
                 TryDirectFollowDash(random);
         }
 
@@ -70,11 +70,11 @@ namespace AutoPOE.Logic.Actions
             if (_isEnabled)
             {
                 tasks.Clear();
-                Input.KeyDown(Core.Settings.Follower.MovementKey);
+                Input.KeyDown(Core.Settings.Follower.Movement.MovementKey);
             }
             else
             {
-                Input.KeyUp(Core.Settings.Follower.MovementKey);
+                Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
             }
         }
 
@@ -83,12 +83,12 @@ namespace AutoPOE.Logic.Actions
             if (DateTime.Now < _nextDirectFollowDashAt)
                 return;
 
-            Input.KeyDown(Core.Settings.Follower.DashKey);
+            Input.KeyDown(Core.Settings.Follower.Movement.DashKey);
             Thread.Sleep(15 + random.Next(15));
-            Input.KeyUp(Core.Settings.Follower.DashKey);
+            Input.KeyUp(Core.Settings.Follower.Movement.DashKey);
             Core.ActionPerformed();
 
-            _nextDirectFollowDashAt = DateTime.Now.AddMilliseconds(Math.Max(25, Core.Settings.Follower.BotInputFrequency.Value));
+            _nextDirectFollowDashAt = DateTime.Now.AddMilliseconds(Math.Max(25, Core.Settings.Follower.Movement.BotInputFrequency.Value));
         }
     }
 }

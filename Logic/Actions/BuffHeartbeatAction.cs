@@ -22,13 +22,13 @@ namespace AutoPOE.Logic.Actions
 
         public bool TryMaintainTargets(Entity? followTarget, List<TaskNode> tasks, Random random, Action<Vector2> setCursorPosHuman2, Action<DateTime> setNextBotAction)
         {
-            if (!Core.Settings.Follower.IsBuffEnabled.Value)
+            if (!Core.Settings.Follower.Buff.IsBuffEnabled.Value)
             {
                 _nextBuffAttemptByTargetEntityId.Clear();
                 return false;
             }
 
-            var configuredBuffName = Core.Settings.Follower.BuffTargetBuffName.Value?.Trim();
+            var configuredBuffName = Core.Settings.Follower.Buff.BuffTargetBuffName.Value?.Trim();
             if (string.IsNullOrWhiteSpace(configuredBuffName))
                 configuredBuffName = "critical_link_target";
 
@@ -41,7 +41,7 @@ namespace AutoPOE.Logic.Actions
                 buffTargets.Add((followTarget, GetBuffTargetLabel(followTarget, "leader")));
             }
 
-            foreach (var extraTargetName in GetExtraBuffTargetNames(Core.Settings.Follower.ExtraBuffTargetName.Value))
+            foreach (var extraTargetName in GetExtraBuffTargetNames(Core.Settings.Follower.Buff.ExtraBuffTargetName.Value))
             {
                 var extraBuffTarget = EntityHelper.GetPlayerEntityByName(extraTargetName);
                 if (extraBuffTarget == null)
@@ -102,7 +102,7 @@ namespace AutoPOE.Logic.Actions
 
             var followerPosition = Core.GameController.Player.GridPosNum;
             var targetDistance = Vector2.Distance(followerPosition, target.GridPosNum);
-            if (targetDistance >= Core.Settings.Follower.ClearPathDistance.Value)
+            if (targetDistance >= Core.Settings.Follower.Movement.ClearPathDistance.Value)
                 return false;
 
             var refreshDue = hasBuff;
@@ -111,9 +111,9 @@ namespace AutoPOE.Logic.Actions
             setCursorPosHuman2(Controls.GetScreenClampedGridPos(target.GridPosNum));
             Thread.Sleep(25);
 
-            Input.KeyDown(Core.Settings.Follower.BuffKey);
+            Input.KeyDown(Core.Settings.Follower.Buff.BuffKey);
             Thread.Sleep(15 + random.Next(10));
-            Input.KeyUp(Core.Settings.Follower.BuffKey);
+            Input.KeyUp(Core.Settings.Follower.Buff.BuffKey);
             Core.ActionPerformed();
 
             Thread.Sleep(35 + random.Next(20));
@@ -124,9 +124,9 @@ namespace AutoPOE.Logic.Actions
 
             _nextBuffAttemptByTargetEntityId[target.Id] = buffApplied
                 ? DateTime.Now.Add(GetBuffRefreshInterval())
-                : DateTime.Now.AddMilliseconds(Math.Max(100, Core.Settings.Follower.BotInputFrequency.Value));
+                : DateTime.Now.AddMilliseconds(Math.Max(100, Core.Settings.Follower.Movement.BotInputFrequency.Value));
 
-            setNextBotAction(DateTime.Now.AddMilliseconds(Math.Max(25, Core.Settings.Follower.BotInputFrequency.Value)));
+            setNextBotAction(DateTime.Now.AddMilliseconds(Math.Max(25, Core.Settings.Follower.Movement.BotInputFrequency.Value)));
 
             var castReason = refreshDue ? "refresh" : "missing";
             var castResult = buffApplied ? "confirmed" : "retry";
@@ -179,7 +179,7 @@ namespace AutoPOE.Logic.Actions
 
         private static TimeSpan GetBuffRefreshInterval()
         {
-            return TimeSpan.FromSeconds(Math.Max(1, Core.Settings.Follower.BuffRefreshIntervalSeconds.Value));
+            return TimeSpan.FromSeconds(Math.Max(1, Core.Settings.Follower.Buff.BuffRefreshIntervalSeconds.Value));
         }
     }
 }
