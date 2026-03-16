@@ -17,18 +17,25 @@ namespace AutoPOE.Logic.Helpers
             Input.SetCursorPos(new Vector2(absoluteX, absoluteY));
         }
 
-        public static void MouseoverItem(Entity item, Random random)
+        public static bool ClickVisibleItemLabel(Entity item, Random random)
         {
-            var uiLoot = Core.GameController.IngameState.IngameUi.ItemsOnGroundLabels.FirstOrDefault(I => I.IsVisible && I.ItemOnGround.Id == item.Id);
-            if (uiLoot != null)
-            {
-                var clickPos = uiLoot.Label.GetClientRect().Center;
-                var windowRect = Core.GameController.Window.GetWindowRectangle();
+            var uiLoot = Core.GameController.IngameState.IngameUi.ItemsOnGroundLabelsVisible
+                .FirstOrDefault(I => I?.ItemOnGround != null && I.ItemOnGround.Id == item.Id);
+            if (uiLoot == null || uiLoot.Label == null)
+                return false;
+
+            var clickPos = uiLoot.Label.GetClientRect().Center;
+            var windowRect = Core.GameController.Window.GetWindowRectangle();
                 Input.SetCursorPos(new Vector2(
-                    clickPos.X + random.Next(-15, 15) + (int)windowRect.X,
-                    clickPos.Y + random.Next(-10, 10) + (int)windowRect.Y));
-                Thread.Sleep(30 + random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
-            }
+                    clickPos.X + random.Next(-2, 3) + (int)windowRect.X,
+                    clickPos.Y + random.Next(-1, 2) + (int)windowRect.Y));
+            Thread.Sleep(20 + random.Next(20));
+
+            Input.LeftDown();
+            Thread.Sleep(15 + random.Next(20));
+            Input.LeftUp();
+            Core.ActionPerformed();
+            return true;
         }
 
         public static void ClickLevelableGem(Element clickableElement, Random random)

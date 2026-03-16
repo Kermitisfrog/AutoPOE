@@ -26,7 +26,7 @@ namespace AutoPOE.Logic.Actions
             Func<uint?, Entity?> getLootableRegularItemById,
             Func<Entity?> getNearbyHostileEnemy,
             Func<List<Element>> getLevelableGems,
-            Action<Entity> mouseoverItem,
+            Func<Entity, bool> clickItemLabel,
             Action<Element> clickLevelableGem,
             Action<Vector2> setCursorPosHuman2,
             Action<DateTime> setCombatCooldown)
@@ -44,7 +44,7 @@ namespace AutoPOE.Logic.Actions
             GetLootableRegularItemById = getLootableRegularItemById;
             GetNearbyHostileEnemy = getNearbyHostileEnemy;
             GetLevelableGems = getLevelableGems;
-            MouseoverItem = mouseoverItem;
+            ClickItemLabel = clickItemLabel;
             ClickLevelableGem = clickLevelableGem;
             SetCursorPosHuman2 = setCursorPosHuman2;
             SetCombatCooldown = setCombatCooldown;
@@ -61,7 +61,7 @@ namespace AutoPOE.Logic.Actions
         public Func<uint?, Entity?> GetLootableRegularItemById { get; }
         public Func<Entity?> GetNearbyHostileEnemy { get; }
         public Func<List<Element>> GetLevelableGems { get; }
-        public Action<Entity> MouseoverItem { get; }
+        public Func<Entity, bool> ClickItemLabel { get; }
         public Action<Element> ClickLevelableGem { get; }
         public Action<Vector2> SetCursorPosHuman2 { get; }
         public Action<DateTime> SetCombatCooldown { get; }

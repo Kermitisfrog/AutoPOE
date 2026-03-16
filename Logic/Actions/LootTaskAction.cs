@@ -1,6 +1,5 @@
 using AutoPOE.Logic.Sequences;
 using ExileCore;
-using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.MemoryObjects;
 using System;
 using System.Numerics;
@@ -85,28 +84,16 @@ namespace AutoPOE.Logic.Actions
             if (TryYieldToBuffs(context, lootLabel))
                 return;
 
-            var targetInfo = lootTarget.GetComponent<Targetable>();
-            Core.Graphics.DrawText($"[DEBUG] {lootLabel} attempt {task.AttemptCount}: Targeted={targetInfo?.isTargeted ?? false}, Distance={lootDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
+            if (TryYieldToBuffs(context, lootLabel))
+                return;
 
-            if (targetInfo != null)
+            var clickedLabel = context.ClickItemLabel(lootTarget);
+            Core.Graphics.DrawText($"[DEBUG] {lootLabel} attempt {task.AttemptCount}: ClickedLabel={clickedLabel} Distance={lootDistance:F0}", new Vector2(100, 220), SharpDX.Color.Yellow);
+
+            if (clickedLabel)
             {
-                if (!targetInfo.isTargeted)
-                {
-                    context.MouseoverItem(lootTarget);
-                }
-                else
-                {
-                    if (TryYieldToBuffs(context, lootLabel))
-                        return;
-
-                    Thread.Sleep(25);
-                    Input.LeftDown();
-                    Thread.Sleep(25 + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
-                    Input.LeftUp();
-                    Core.ActionPerformed();
-                    context.NextBotAction = DateTime.Now.AddSeconds(1);
-                    context.Tasks.RemoveAt(0);
-                }
+                context.NextBotAction = DateTime.Now.AddSeconds(1);
+                context.Tasks.RemoveAt(0);
             }
         }
     }

@@ -465,7 +465,7 @@ namespace AutoPOE.Logic.Sequences
                 EntityHelper.GetLootableRegularItemById,
                 EntityHelper.GetNearbyHostileEnemy,
                 GemHelper.GetLevelableGems,
-                item => CursorHelper.MouseoverItem(item, _random),
+                item => CursorHelper.ClickVisibleItemLabel(item, _random),
                 element => CursorHelper.ClickLevelableGem(element, _random),
                 CursorHelper.SetCursorPosHuman2,
                 value => _combatCooldownUntil = value);

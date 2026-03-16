@@ -14,10 +14,14 @@ namespace AutoPOE.Logic.Helpers
         {
             try
             {
-                return Core.GameController.EntityListWrapper.Entities
-                    .Where(e => e.Type == EntityType.WorldItem)
-                    .Where(e => e.IsTargetable)
-                    .Select(e => new { Entity = e, WorldItem = e.GetComponent<WorldItem>() })
+                var visibleGroundLabels = Core.GameController.IngameState.IngameUi.ItemsOnGroundLabelsVisible;
+                if (visibleGroundLabels == null)
+                    return null;
+
+                return visibleGroundLabels
+                    .Select(label => label?.ItemOnGround)
+                    .Where(e => e != null && e.Type == EntityType.WorldItem && e.IsTargetable)
+                    .Select(e => new { Entity = e!, WorldItem = e!.GetComponent<WorldItem>() })
                     .Where(x => x.WorldItem != null)
                     .Select(x => x.Entity)
                     .FirstOrDefault(e =>
