@@ -31,20 +31,23 @@ namespace AutoPOE.Logic.Helpers
                 .Where(label => label?.ItemOnGround != null && label.Label != null)
                 .Where(label => !(label.Label.Text ?? "").EndsWith("gold", StringComparison.OrdinalIgnoreCase))
                 .Where(label => !leaderPos.HasValue || Vector2.Distance(leaderPos.Value, label.ItemOnGround.GridPosNum) <= maxDist)
-                .Select(label => new { Label = label, GroundItem = label.ItemOnGround })
-                .Where(x =>
+                .Select(label =>
                 {
-                    if (x.GroundItem.Type == ExileCore.Shared.Enums.EntityType.WorldItem)
-                        return true;
-
+                    WorldItem? worldItemComponent;
                     try
                     {
-                        return x.GroundItem.GetComponent<WorldItem>() != null;
+                        worldItemComponent = label.ItemOnGround.GetComponent<WorldItem>();
                     }
                     catch
                     {
-                        return false;
+                        worldItemComponent = null;
                     }
+
+                    return new { Label = label, GroundItem = label.ItemOnGround, WorldItem = worldItemComponent };
+                })
+                .Where(x =>
+                {
+                    return x.WorldItem != null && !x.WorldItem.AllocatedToSomeoneElse;
                 })
                 .OrderBy(x => Vector2.Distance(followerPos, x.GroundItem.GridPosNum))
                 .FirstOrDefault();
