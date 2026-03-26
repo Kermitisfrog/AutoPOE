@@ -12,7 +12,7 @@ namespace AutoPOE.Logic.Actions
         public void Execute(FollowerActionContext context, TaskNode task)
         {
             var taskDistance = Vector2.Distance(Core.GameController.Player.GridPosNum, task.WorldPosition);
-            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value * 2 + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
+            context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency.Value / 2));
             var screenPos = Controls.GetScreenClampedGridPos(task.WorldPosition);
             if (taskDistance <= Core.Settings.Follower.Movement.ClearPathDistance.Value)
             {
@@ -23,7 +23,7 @@ namespace AutoPOE.Logic.Actions
                 Thread.Sleep(context.Random.Next(25) + 30);
                 Input.LeftUp();
                 Core.ActionPerformed();
-                context.NextBotAction = DateTime.Now.AddSeconds(1);
+                context.NextBotAction = DateTime.Now.AddMilliseconds(500);
             }
             else
             {

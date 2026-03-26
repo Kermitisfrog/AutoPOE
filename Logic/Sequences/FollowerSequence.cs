@@ -271,8 +271,16 @@ namespace AutoPOE.Logic.Sequences
                         _debugFarDetails += $" transitionFound={(transition != null)} transitionDist={transitionDist:F0}";
                         if (transition != null && transitionDist < Core.Settings.Follower.Movement.ClearPathDistance.Value)
                         {
-                            _tasks.Add(new TaskNode(transition.GridPosNum, 200, TaskNode.TaskNodeType.Transition));
-                            _debugFarDetails += " taskAdded=true";
+                            // Leader is in zone (_followTarget != null); avoid portal-type transitions.
+                            if (IsPortalType(transition))
+                            {
+                                _debugFarDetails += " taskAdded=false(portal-in-zone)";
+                            }
+                            else
+                            {
+                                _tasks.Add(new TaskNode(transition.GridPosNum, 200, TaskNode.TaskNodeType.Transition));
+                                _debugFarDetails += " taskAdded=true";
+                            }
                         }
                         else
                         {
@@ -387,8 +395,11 @@ namespace AutoPOE.Logic.Sequences
             {
                 Core.Graphics.DrawText($"[DEBUG] Leader lost, searching for transitions. Known transitions: {_areaTransitions.Count}", new Vector2(100, 140), SharpDX.Color.Magenta);
                 
+                var leaderName = Core.Settings.Follower.Movement.LeaderName.Value?.Trim();
+                var leaderIsInZone = !string.IsNullOrWhiteSpace(leaderName) && EntityHelper.GetPlayerEntityByName(leaderName) != null;
                 var transOptions = _areaTransitions.Values
                     .Where(I => Vector2.Distance(_lastTargetPosition, I.GridPosNum) < Core.Settings.Follower.Movement.ClearPathDistance.Value)
+                    .Where(I => !leaderIsInZone || !IsPortalType(I))
                     .OrderBy(I => Vector2.Distance(_lastTargetPosition, I.GridPosNum))
                     .ToArray();
                 
@@ -406,6 +417,12 @@ namespace AutoPOE.Logic.Sequences
 
             _lastPlayerPosition = Core.GameController.Player.GridPosNum;
         }
+
+        private static bool IsPortalType(Entity transition) =>
+            transition.Type == EntityType.Portal ||
+            transition.Type == EntityType.TownPortal ||
+            transition.Metadata == "Metadata/MiscellaneousObjects/Faridun/DjinnPortal" ||
+            transition.Metadata == "Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal";
 
         private void ExecuteTask()
         {
