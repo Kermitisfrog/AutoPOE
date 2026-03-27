@@ -149,21 +149,42 @@ namespace AutoPOE.Logic.Helpers
 
                     if (acceptButton.IsVisible)
                     {
-                        var buttonRect = acceptButton.GetClientRect();
-                        var center = buttonRect.Center;
-                        if (center.X <= 0 || center.Y <= 0)
-                            center = acceptButton.GetClientRectCache.Center;
-
                         var windowRect = Core.GameController.Window.GetWindowRectangle();
+                        var liveCenter = acceptButton.GetClientRect().Center;
+                        var cachedCenter = acceptButton.GetClientRectCache.Center;
+
+                        var center = liveCenter.X > 0 && liveCenter.Y > 0 ? liveCenter : cachedCenter;
+                        var clickX = (int)windowRect.X + center.X;
+                        var clickY = (int)windowRect.Y + center.Y;
+
+                        // If the rect center is already in absolute space, use it as-is.
+                        if (center.X >= windowRect.X && center.X <= windowRect.X + windowRect.Width &&
+                            center.Y >= windowRect.Y && center.Y <= windowRect.Y + windowRect.Height)
+                        {
+                            clickX = center.X;
+                            clickY = center.Y;
+                        }
+
+                        clickX = Math.Clamp(clickX, (int)windowRect.X + 1, (int)(windowRect.X + windowRect.Width) - 1);
+                        clickY = Math.Clamp(clickY, (int)windowRect.Y + 1, (int)(windowRect.Y + windowRect.Height) - 1);
+
                         Input.SetCursorPos(new Vector2(
-                            center.X + random.Next(-2, 3) + (int)windowRect.X,
-                            center.Y + random.Next(-2, 3) + (int)windowRect.Y));
+                            clickX + random.Next(-2, 3),
+                            clickY + random.Next(-2, 3)));
 
                         Thread.Sleep(20 + random.Next(20));
                         Input.LeftDown();
                         Thread.Sleep(15 + random.Next(20));
                         Input.LeftUp();
                         Core.ActionPerformed();
+
+                        var postClickTradeWindow = GetPropertyValue<object>(ingameUi, "TradeWindow");
+                        var postClickVisible = postClickTradeWindow != null &&
+                            GetPropertyValue<object>(postClickTradeWindow, "IsVisible") is bool postVisible && postVisible;
+                        if (postClickVisible)
+                            return true;
+
+                        Thread.Sleep(35 + random.Next(25));
                     }
 
                     Thread.Sleep(90 + random.Next(90));
