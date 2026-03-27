@@ -132,29 +132,42 @@ namespace AutoPOE.Logic.Helpers
                 if (inviteEntry == null)
                     return false;
 
-                var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
-                if (acceptButton == null || !acceptButton.IsVisible)
-                    return false;
+                var ingameUi = Core.GameController.IngameState.IngameUi;
+                var stopAt = DateTime.UtcNow.AddMilliseconds(4000 + random.Next(600));
 
-                // Let the invite window settle before sampling button coordinates.
-                Thread.Sleep(600 + random.Next(120));
+                while (DateTime.UtcNow < stopAt)
+                {
+                    var tradeWindow = GetPropertyValue<object>(ingameUi, "TradeWindow");
+                    if (tradeWindow != null)
+                        return true;
 
-                var buttonRect = acceptButton.GetClientRect();
-                var center = buttonRect.Center;
-                if (center.X <= 0 || center.Y <= 0)
-                    center = acceptButton.GetClientRectCache.Center;
+                    var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
+                    if (acceptButton == null)
+                        return false;
 
-                var windowRect = Core.GameController.Window.GetWindowRectangle();
-                Input.SetCursorPos(new Vector2(
-                    center.X + random.Next(-2, 3) + (int)windowRect.X,
-                    center.Y + random.Next(-2, 3) + (int)windowRect.Y));
+                    if (acceptButton.IsVisible)
+                    {
+                        var buttonRect = acceptButton.GetClientRect();
+                        var center = buttonRect.Center;
+                        if (center.X <= 0 || center.Y <= 0)
+                            center = acceptButton.GetClientRectCache.Center;
 
-                Thread.Sleep(25 + random.Next(20));
-                Input.LeftDown();
-                Thread.Sleep(15 + random.Next(20));
-                Input.LeftUp();
-                Core.ActionPerformed();
-                return true;
+                        var windowRect = Core.GameController.Window.GetWindowRectangle();
+                        Input.SetCursorPos(new Vector2(
+                            center.X + random.Next(-2, 3) + (int)windowRect.X,
+                            center.Y + random.Next(-2, 3) + (int)windowRect.Y));
+
+                        Thread.Sleep(20 + random.Next(20));
+                        Input.LeftDown();
+                        Thread.Sleep(15 + random.Next(20));
+                        Input.LeftUp();
+                        Core.ActionPerformed();
+                    }
+
+                    Thread.Sleep(90 + random.Next(90));
+                }
+
+                return GetPropertyValue<object>(ingameUi, "TradeWindow") != null;
             }
             catch (Exception ex)
             {

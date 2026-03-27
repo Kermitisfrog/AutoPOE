@@ -46,6 +46,13 @@ namespace AutoPOE.Logic.Actions
                 return;
             }
 
+            var tradeWindow = Core.GameController.IngameState.IngameUi?.TradeWindow;
+            if (tradeWindow == null)
+            {
+                context.Tasks.RemoveAt(0);
+                return;
+            }
+
             Thread.Sleep(180 + context.Random.Next(140));
             _ = CursorHelper.CtrlClickAllInventoryItemsForTrade(context.Random);
             Thread.Sleep(120 + context.Random.Next(100));
