@@ -134,6 +134,7 @@ namespace AutoPOE.Logic.Helpers
 
                 // Retry briefly because the invite window can appear/interpolate over multiple ticks.
                 const int maxAttempts = 8;
+                Thread.Sleep(250);
                 for (var attempt = 0; attempt < maxAttempts; attempt++)
                 {
                     Thread.Sleep(attempt == 0 ? 120 + random.Next(80) : 55 + random.Next(55));
@@ -184,7 +185,7 @@ namespace AutoPOE.Logic.Helpers
                     return false;
 
                 Input.KeyDown(Keys.LControlKey);
-                Thread.Sleep(20 + random.Next(20));
+                Thread.Sleep(120 + random.Next(80));
                 try
                 {
                     foreach (var item in items)
