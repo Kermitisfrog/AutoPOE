@@ -233,19 +233,6 @@ namespace AutoPOE.Logic.Helpers
                     center.Y + random.Next(-2, 3)));
 
                 Thread.Sleep(20 + random.Next(20));
-
-                const int highlightPollMs = 30;
-                const int highlightTimeoutMs = 600;
-                var highlightElapsed = 0;
-                while (!GetBooleanPropertyValue(acceptButton, "HasShinyHighlight") && highlightElapsed < highlightTimeoutMs)
-                {
-                    Thread.Sleep(highlightPollMs);
-                    highlightElapsed += highlightPollMs;
-                }
-
-                if (!GetBooleanPropertyValue(acceptButton, "HasShinyHighlight"))
-                    return false;
-
                 Input.LeftDown();
                 Thread.Sleep(15 + random.Next(20));
                 Input.LeftUp();
