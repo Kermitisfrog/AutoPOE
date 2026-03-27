@@ -26,18 +26,12 @@ namespace AutoPOE.Logic.Actions
             context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
             task.AttemptCount++;
 
-            if (task.AttemptCount > 3)
+            if (task.AttemptCount > 4)
             {
                 context.Tasks.RemoveAt(0);
                 return;
             }
 
-            var inviteEntry = CursorHelper.GetPendingTradeInviteEntry(leaderAccountName);
-            if (inviteEntry == null)
-            {
-                context.Tasks.RemoveAt(0);
-                return;
-            }
 
             var acceptedInvite = CursorHelper.ClickTradeInviteAccept(leaderAccountName, context.Random);
             if (!acceptedInvite)
