@@ -150,7 +150,7 @@ namespace AutoPOE.Logic.Sequences
 
             // Trade window: if visible, ensure a TradeWindow task is at the front of the queue and execute it.
             var tradeWindowPanel = Core.GameController.IngameState.IngameUi.TradeWindow;
-            if (tradeWindowPanel.IsVisible)
+            if (tradeWindowPanel.IsVisible && !tradeWindowPanel.SellerAccepted)
             {
                 if (!_tasks.Any(t => t.Type == TaskNode.TaskNodeType.TradeWindow))
                     _tasks.Insert(0, new TaskNode(Vector2.Zero, 0, TaskNode.TaskNodeType.TradeWindow));
