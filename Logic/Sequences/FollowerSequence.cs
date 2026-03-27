@@ -139,6 +139,9 @@ namespace AutoPOE.Logic.Sequences
             if (hasQueuedTradeTask)
             {
                 _tasks.RemoveAll(t => t.Type != TaskNode.TaskNodeType.Trade);
+                var tradeTask = _tasks.FirstOrDefault(t => t.Type == TaskNode.TaskNodeType.Trade);
+                var attempts = tradeTask?.AttemptCount ?? 0;
+                Core.Graphics.DrawText($"[DEBUG] Trade task in progress (attempt {attempts})", new Vector2(100, 360), SharpDX.Color.Gold);
 
                 if (DateTime.Now > _nextBotAction && _tasks.Count > 0)
                     ExecuteTask();

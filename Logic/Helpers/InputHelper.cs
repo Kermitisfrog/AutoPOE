@@ -180,15 +180,8 @@ namespace AutoPOE.Logic.Helpers
         {
             try
             {
-                var playerInventories = Core.GameController.IngameState.Data.ServerData.PlayerInventories;
-                if (playerInventories == null || playerInventories.Count == 0)
-                    return false;
 
-                var inventory = playerInventories[0]?.Inventory;
-                if (inventory == null)
-                    return false;
-
-                var items = inventory.InventorySlotItems;
+                var items = Core.GameController.IngameState.Data.ServerData.PlayerInventories[0]?.Inventory?.InventorySlotItems;
                 if (items == null || items.Count == 0)
                     return false;
 
