@@ -137,15 +137,10 @@ namespace AutoPOE.Logic.Helpers
                 if (acceptButton == null || !acceptButton.IsVisible)
                     return false;
 
-                var buttonRect = acceptButton.GetClientRect();
-                var center = buttonRect.Center;
-                if (center.X <= 0 || center.Y <= 0)
-                    center = acceptButton.GetClientRectCache.Center;
-
-                var windowRect = Core.GameController.Window.GetWindowRectangle();
+                var center = acceptButton.Center;
                 Input.SetCursorPos(new Vector2(
-                    center.X + random.Next(-2, 3) + (int)windowRect.X,
-                    center.Y + random.Next(-2, 3) + (int)windowRect.Y));
+                    center.X + random.Next(-2, 3),
+                    center.Y + random.Next(-2, 3)));
 
                 Thread.Sleep(25 + random.Next(20));
                 Input.LeftDown();
