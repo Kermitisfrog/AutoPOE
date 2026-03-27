@@ -51,6 +51,7 @@ namespace AutoPOE.Logic.Sequences
                 { TaskNode.TaskNodeType.Combat, new CombatTaskAction() },
                 { TaskNode.TaskNodeType.GemLevel, new GemLevelTaskAction() },
                 { TaskNode.TaskNodeType.Ultimatum, new UltimatumTaskAction() },
+                { TaskNode.TaskNodeType.Trade, new TradeTaskAction() },
             };
             ResetPathing();
         }
@@ -177,9 +178,13 @@ namespace AutoPOE.Logic.Sequences
 
             var hasRegularItemLootTask = _tasks.Any(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
             var isLootEnabled = Core.Settings.Follower.Items.IsLootEnabled.Value;
+            var isTradeEnabled = Core.Settings.Follower.Items.IsTradeEnabled.Value;
 
             if (!isLootEnabled)
                 _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
+
+            if (!isTradeEnabled)
+                _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.Trade);
 
             if (!Core.GameController.Player.IsAlive)
             {
@@ -386,6 +391,17 @@ namespace AutoPOE.Logic.Sequences
                         Core.Graphics.DrawText("[DEBUG] Found regular loot item, creating task", new Vector2(100, 320), SharpDX.Color.LightGreen);
                         _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.RegularItemLooting));
                     }
+
+                    var hasTradeTask = _tasks.Any(I => I.Type == TaskNode.TaskNodeType.Trade);
+                    var tradeLeaderAccountName = Core.Settings.Follower.Items.TradeLeaderAccountName.Value?.Trim();
+                    var hasPendingTradeInvite = isTradeEnabled &&
+                        !string.IsNullOrWhiteSpace(tradeLeaderAccountName) &&
+                        CursorHelper.GetPendingTradeInviteEntry(tradeLeaderAccountName) != null;
+                    if (hasPendingTradeInvite && _tasks.Count == 0 && !hasTradeTask)
+                    {
+                        Core.Graphics.DrawText("[DEBUG] Found leader trade invite, creating trade task", new Vector2(100, 340), SharpDX.Color.Gold);
+                        _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Trade));
+                    }
                 }
                 _lastTargetPosition = targetPos;
             }
@@ -508,6 +524,7 @@ namespace AutoPOE.Logic.Sequences
             Combat,
             GemLevel,
             Ultimatum,
+            Trade,
         }
 
         public Vector2 WorldPosition { get; set; }

@@ -107,6 +107,12 @@ namespace AutoPOE
 
                 [Menu("Enable Gem Leveling", "Allow follower to auto level available skill gems.")]
                 public ToggleNode IsGemLevelingEnabled { get; set; } = new ToggleNode(true);
+
+                [Menu("Enable Trade Task", "Allow follower to accept leader trade requests and auto-trade inventory items.")]
+                public ToggleNode IsTradeEnabled { get; set; } = new ToggleNode(true);
+
+                [Menu("Trade Leader Account", "Account name used to validate incoming trade invites from leader.")]
+                public TextNode TradeLeaderAccountName { get; set; } = new TextNode("");
             }
         }
     }
