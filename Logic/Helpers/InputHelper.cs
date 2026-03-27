@@ -137,9 +137,6 @@ namespace AutoPOE.Logic.Helpers
                 const int maxAttempts = 8;
                 for (var attempt = 0; attempt < maxAttempts; attempt++)
                 {
-                    if (attempt <= 5)
-                        continue;
-                        
                     Thread.Sleep(attempt == 0 ? 120 + random.Next(80) : 55 + random.Next(55));
 
                     var inviteEntry = GetPendingTradeInviteEntry(leaderAccountName);
@@ -176,6 +173,9 @@ namespace AutoPOE.Logic.Helpers
                         center.Y + random.Next(-2, 3)));
 
                     Thread.Sleep(25 + random.Next(20));
+                    if (!GetBooleanPropertyValue(acceptButton, "HasShinyHighlight"))
+                        continue;
+
                     Input.LeftDown();
                     Thread.Sleep(15 + random.Next(20));
                     Input.LeftUp();
@@ -285,6 +285,15 @@ namespace AutoPOE.Logic.Helpers
                 return null;
 
             return property.GetValue(source) as T;
+        }
+
+        private static bool GetBooleanPropertyValue(object source, string propertyName)
+        {
+            var property = source.GetType().GetProperty(propertyName);
+            if (property == null)
+                return false;
+
+            return property.GetValue(source) is bool value && value;
         }
     }
 }
