@@ -85,7 +85,7 @@ namespace AutoPOE.Logic.Helpers
             Core.ActionPerformed();
         }
 
-        public static Element? GetPendingTradeInviteEntry(string leaderAccountName)
+        public static object? GetPendingTradeInviteEntry(string leaderAccountName)
         {
             if (string.IsNullOrWhiteSpace(leaderAccountName))
                 return null;
@@ -93,27 +93,28 @@ namespace AutoPOE.Logic.Helpers
             try
             {
                 var ingameUi = Core.GameController.IngameState.IngameUi;
-                var invitesPanel = GetPropertyValue<Element>(ingameUi, "InvitesPanel");
-                if (invitesPanel?.Children == null)
+                var invitesPanel = GetPropertyValue<object>(ingameUi, "InvitesPanel");
+                if (invitesPanel == null)
                     return null;
 
-                foreach (var entry in invitesPanel.Children)
+                var invites = GetPropertyValue<System.Collections.IEnumerable>(invitesPanel, "Invites");
+                if (invites == null)
+                    return null;
+
+                foreach (var inviteEntry in invites)
                 {
-                    if (entry?.Children == null || entry.Children.Count < 3)
+                    if (inviteEntry == null)
                         continue;
 
-                    var requestText = entry.Children[0]?.Children != null && entry.Children[0].Children.Count > 1
-                        ? entry.Children[0].Children[1]?.Text
-                        : null;
-                    if (string.IsNullOrWhiteSpace(requestText) ||
-                        requestText.IndexOf("sent you a trade request", StringComparison.OrdinalIgnoreCase) < 0)
+                    var actionText = GetPropertyValue<string>(inviteEntry, "ActionText");
+                    if (!string.Equals(actionText, "sent you a trade request", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    var accountTextureName = entry.Children[1]?.TextureName;
-                    if (!string.Equals(accountTextureName, leaderAccountName, StringComparison.OrdinalIgnoreCase))
+                    var accountName = GetPropertyValue<string>(inviteEntry, "AccountName");
+                    if (!string.Equals(accountName, leaderAccountName, StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    return entry;
+                    return inviteEntry;
                 }
             }
             catch (Exception ex)
@@ -124,16 +125,14 @@ namespace AutoPOE.Logic.Helpers
             return null;
         }
 
-        public static bool ClickTradeInviteAccept(Element inviteEntry, Random random)
+        public static bool ClickTradeInviteAccept(object inviteEntry, Random random)
         {
             try
             {
-                if (inviteEntry?.Children == null || inviteEntry.Children.Count < 3)
+                if (inviteEntry == null)
                     return false;
 
-                var acceptButton = inviteEntry.Children[2]?.Children != null && inviteEntry.Children[2].Children.Count > 0
-                    ? inviteEntry.Children[2].Children[0]
-                    : null;
+                var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
                 if (acceptButton == null || !acceptButton.IsVisible)
                     return false;
 
