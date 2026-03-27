@@ -52,6 +52,7 @@ namespace AutoPOE.Logic.Sequences
                 { TaskNode.TaskNodeType.GemLevel, new GemLevelTaskAction() },
                 { TaskNode.TaskNodeType.Ultimatum, new UltimatumTaskAction() },
                 { TaskNode.TaskNodeType.Trade, new TradeTaskAction() },
+                { TaskNode.TaskNodeType.TradeWindow, new TradeWindowTaskAction() },
             };
             ResetPathing();
         }
@@ -141,6 +142,18 @@ namespace AutoPOE.Logic.Sequences
             {
                 if (!_tasks.Any(t => t.Type == TaskNode.TaskNodeType.Ultimatum))
                     _tasks.Insert(0, new TaskNode(Vector2.Zero, 0, TaskNode.TaskNodeType.Ultimatum));
+
+                if (DateTime.Now > _nextBotAction && _tasks.Count > 0)
+                    ExecuteTask();
+                return;
+            }
+
+            // Trade window: if visible, ensure a TradeWindow task is at the front of the queue and execute it.
+            var tradeWindowPanel = Core.GameController.IngameState.IngameUi.TradeWindow;
+            if (tradeWindowPanel.IsVisible)
+            {
+                if (!_tasks.Any(t => t.Type == TaskNode.TaskNodeType.TradeWindow))
+                    _tasks.Insert(0, new TaskNode(Vector2.Zero, 0, TaskNode.TaskNodeType.TradeWindow));
 
                 if (DateTime.Now > _nextBotAction && _tasks.Count > 0)
                     ExecuteTask();
@@ -530,6 +543,7 @@ namespace AutoPOE.Logic.Sequences
             GemLevel,
             Ultimatum,
             Trade,
+            TradeWindow,
         }
 
         public Vector2 WorldPosition { get; set; }

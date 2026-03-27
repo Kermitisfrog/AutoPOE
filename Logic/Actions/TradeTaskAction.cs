@@ -34,37 +34,8 @@ namespace AutoPOE.Logic.Actions
 
 
             var acceptedInvite = CursorHelper.ClickTradeInviteAccept(leaderAccountName, context.Random);
-            if (!acceptedInvite)
-            {
-                context.Tasks.RemoveAt(0);
-                return;
-            }
-
-            Thread.Sleep(100);
-            // Poll until the trade window appears; the UI needs time to open after accepting the invite.
-            var tradeWindow = Core.GameController.IngameState.IngameUi.TradeWindow;
-            const int pollIntervalMs = 50;
-            const int tradeWindowTimeoutMs = 300;
-            var elapsed = 0;
-            while (!tradeWindow.IsVisible && elapsed < tradeWindowTimeoutMs)
-            {
-                Thread.Sleep(pollIntervalMs);
-                elapsed += pollIntervalMs;
-                tradeWindow = Core.GameController.IngameState.IngameUi.TradeWindow;
-            }
-
-            if (!tradeWindow.IsVisible)
-            {
-                context.Tasks.RemoveAt(0);
-                return;
-            }
-
-            Thread.Sleep(180 + context.Random.Next(140));
-            _ = CursorHelper.CtrlClickAllInventoryItemsForTrade(context.Random);
-            Thread.Sleep(120 + context.Random.Next(100));
-            _ = CursorHelper.ClickTradeWindowAccept(context.Random);
-            context.NextBotAction = DateTime.Now.AddMilliseconds(600 + context.Random.Next(300));
-
+            // Whether the invite click succeeded or not, remove this task — the TradeWindow
+            // Tick check will create a TradeWindow task once the window actually opens.
             context.Tasks.RemoveAt(0);
         }
     }
