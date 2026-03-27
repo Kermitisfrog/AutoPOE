@@ -40,19 +40,20 @@ namespace AutoPOE.Logic.Actions
                 return;
             }
 
+            Thread.Sleep(100);
             // Poll until the trade window appears; the UI needs time to open after accepting the invite.
-            var tradeWindow = Core.GameController.IngameState.IngameUi?.TradeWindow;
-            const int pollIntervalMs = 120;
-            const int tradeWindowTimeoutMs = 1500;
+            var tradeWindow = Core.GameController.IngameState.IngameUi.TradeWindow;
+            const int pollIntervalMs = 50;
+            const int tradeWindowTimeoutMs = 300;
             var elapsed = 0;
-            while ((tradeWindow == null || !tradeWindow.IsVisible) && elapsed < tradeWindowTimeoutMs)
+            while (!tradeWindow.IsVisible && elapsed < tradeWindowTimeoutMs)
             {
-                Thread.Sleep(pollIntervalMs + context.Random.Next(60));
+                Thread.Sleep(pollIntervalMs);
                 elapsed += pollIntervalMs;
-                tradeWindow = Core.GameController.IngameState.IngameUi?.TradeWindow;
+                tradeWindow = Core.GameController.IngameState.IngameUi.TradeWindow;
             }
 
-            if (tradeWindow == null || !tradeWindow.IsVisible)
+            if (!tradeWindow.IsVisible)
             {
                 context.Tasks.RemoveAt(0);
                 return;
