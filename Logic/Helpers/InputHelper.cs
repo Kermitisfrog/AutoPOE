@@ -132,22 +132,33 @@ namespace AutoPOE.Logic.Helpers
                 if (inviteEntry == null)
                     return false;
 
-                Thread.Sleep(2000 + random.Next(200));
-                var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
-                if (acceptButton == null || !acceptButton.IsVisible)
-                    return false;
+                // Retry briefly because the invite window can appear/interpolate over multiple ticks.
+                const int maxAttempts = 8;
+                for (var attempt = 0; attempt < maxAttempts; attempt++)
+                {
+                    Thread.Sleep(attempt == 0 ? 120 + random.Next(80) : 55 + random.Next(55));
 
-                var center = acceptButton.Center;
-                Input.SetCursorPos(new Vector2(
-                    center.X + random.Next(-2, 3),
-                    center.Y + random.Next(-2, 3)));
+                    var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
+                    if (acceptButton == null || !acceptButton.IsVisible)
+                        continue;
 
-                Thread.Sleep(25 + random.Next(20));
-                Input.LeftDown();
-                Thread.Sleep(15 + random.Next(20));
-                Input.LeftUp();
-                Core.ActionPerformed();
-                return true;
+                    var center = acceptButton.Center;
+                    if (center.X <= 0 || center.Y <= 0)
+                        continue;
+
+                    Input.SetCursorPos(new Vector2(
+                        center.X + random.Next(-2, 3),
+                        center.Y + random.Next(-2, 3)));
+
+                    Thread.Sleep(25 + random.Next(20));
+                    Input.LeftDown();
+                    Thread.Sleep(15 + random.Next(20));
+                    Input.LeftUp();
+                    Core.ActionPerformed();
+                    return true;
+                }
+
+                return false;
             }
             catch (Exception ex)
             {
