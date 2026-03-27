@@ -39,7 +39,6 @@ namespace AutoPOE.Logic.Actions
                 return;
             }
 
-            Thread.Sleep(1000);
             var acceptedInvite = CursorHelper.ClickTradeInviteAccept(leaderAccountName, context.Random);
             if (!acceptedInvite)
             {

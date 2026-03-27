@@ -135,21 +135,6 @@ namespace AutoPOE.Logic.Sequences
 
         public void Tick()
         {
-            var hasQueuedTradeTask = _tasks.Any(t => t.Type == TaskNode.TaskNodeType.Trade);
-            if (hasQueuedTradeTask)
-            {
-                _tasks.RemoveAll(t => t.Type != TaskNode.TaskNodeType.Trade);
-                var tradeTask = _tasks.FirstOrDefault(t => t.Type == TaskNode.TaskNodeType.Trade);
-                var attempts = tradeTask?.AttemptCount ?? 0;
-                Core.Graphics.DrawText($"[DEBUG] Trade task in progress (attempt {attempts})", new Vector2(100, 360), SharpDX.Color.Gold);
-
-                if (DateTime.Now > _nextBotAction && _tasks.Count > 0)
-                    ExecuteTask();
-
-                _lastPlayerPosition = Core.GameController.Player.GridPosNum;
-                return;
-            }
-
             // Ultimatum panel: if visible, ensure an Ultimatum task is at the front of the queue and execute it.
             var ultimatumPanel = Core.GameController.IngameState.IngameUi.UltimatumPanel;
             if (ultimatumPanel != null && ultimatumPanel.IsVisible)
@@ -522,10 +507,14 @@ namespace AutoPOE.Logic.Sequences
             var taskInfo = _tasks?.Count > 0 ? _tasks[0].Type.ToString() : "None";
             var taskCount = _tasks?.Count ?? 0;
             var directFollow = _directFollowAction.IsEnabled ? "ON" : "OFF";
+            var cursorAbs = System.Windows.Forms.Cursor.Position;
+            var windowRect = Core.GameController.Window.GetWindowRectangle();
+            var cursorRelative = new Vector2(cursorAbs.X - (float)windowRect.X, cursorAbs.Y - (float)windowRect.Y);
             
             Core.Graphics.DrawText($"Follower: Leader='{Core.Settings.Follower.Movement.LeaderName}' Tasks={_tasks?.Count ?? 0} NextDist={dist:F0} TargetDist={targetDist} taskCount={taskCount}", new Vector2(100, 100), SharpDX.Color.White);
             Core.Graphics.DrawText($"LeaderDist={leaderDist:F0} FollowTarget={(_followTarget != null ? "Found" : "Lost")} CurrentTask={taskInfo} CanExecute={canExecute}", new Vector2(100, 120), SharpDX.Color.Yellow);
             Core.Graphics.DrawText($"DirectFollowMode={directFollow} (toggle: Shift)", new Vector2(100, 140), SharpDX.Color.LawnGreen);
+            Core.Graphics.DrawText($"Cursor: Abs=({cursorAbs.X}, {cursorAbs.Y}) Rel=({cursorRelative.X:F0}, {cursorRelative.Y:F0})", new Vector2(100, 160), SharpDX.Color.Orange);
         }
     }
 
