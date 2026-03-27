@@ -245,6 +245,20 @@ namespace AutoPOE.Logic.Helpers
                     center.Y + random.Next(-2, 3) + (int)windowRect.Y));
 
                 Thread.Sleep(20 + random.Next(20));
+
+                // Wait for the button to register the cursor hover (shiny highlight) before clicking.
+                const int highlightPollMs = 30;
+                const int highlightTimeoutMs = 600;
+                var highlightElapsed = 0;
+                while (!GetBooleanPropertyValue(acceptButton, "HasShinyHighlight") && highlightElapsed < highlightTimeoutMs)
+                {
+                    Thread.Sleep(highlightPollMs);
+                    highlightElapsed += highlightPollMs;
+                }
+
+                if (!GetBooleanPropertyValue(acceptButton, "HasShinyHighlight"))
+                    return false;
+
                 _lastTradeWindowAcceptClickUtc = nowUtc;
                 Input.LeftDown();
                 Thread.Sleep(15 + random.Next(20));
