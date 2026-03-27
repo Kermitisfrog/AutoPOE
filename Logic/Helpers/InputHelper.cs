@@ -135,28 +135,36 @@ namespace AutoPOE.Logic.Helpers
                 // Retry briefly because the invite window can appear/interpolate over multiple ticks.
                 const int maxAttempts = 8;
                 Thread.Sleep(250);
-                for (var attempt = 0; attempt < maxAttempts; attempt++)
+                Input.KeyDown(Keys.LShiftKey);
+                try
                 {
-                    Thread.Sleep(attempt == 0 ? 120 + random.Next(80) : 55 + random.Next(55));
+                    for (var attempt = 0; attempt < maxAttempts; attempt++)
+                    {
+                        Thread.Sleep(attempt == 0 ? 120 + random.Next(80) : 55 + random.Next(55));
 
-                    var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
-                    if (acceptButton == null || !acceptButton.IsVisible)
-                        continue;
+                        var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
+                        if (acceptButton == null || !acceptButton.IsVisible)
+                            continue;
 
-                    var center = acceptButton.Center;
-                    if (center.X <= 0 || center.Y <= 0)
-                        continue;
+                        var center = acceptButton.Center;
+                        if (center.X <= 0 || center.Y <= 0)
+                            continue;
 
-                    Input.SetCursorPos(new Vector2(
-                        center.X + random.Next(-2, 3),
-                        center.Y + random.Next(-2, 3)));
+                        Input.SetCursorPos(new Vector2(
+                            center.X + random.Next(-2, 3),
+                            center.Y + random.Next(-2, 3)));
 
-                    Thread.Sleep(25 + random.Next(20));
-                    Input.LeftDown();
-                    Thread.Sleep(15 + random.Next(20));
-                    Input.LeftUp();
-                    Core.ActionPerformed();
-                    return true;
+                        Thread.Sleep(25 + random.Next(20));
+                        Input.LeftDown();
+                        Thread.Sleep(15 + random.Next(20));
+                        Input.LeftUp();
+                        Core.ActionPerformed();
+                        return true;
+                    }
+                }
+                finally
+                {
+                    Input.KeyUp(Keys.LShiftKey);
                 }
 
                 return false;

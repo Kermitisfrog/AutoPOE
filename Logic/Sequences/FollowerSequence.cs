@@ -135,6 +135,18 @@ namespace AutoPOE.Logic.Sequences
 
         public void Tick()
         {
+            var hasQueuedTradeTask = _tasks.Any(t => t.Type == TaskNode.TaskNodeType.Trade);
+            if (hasQueuedTradeTask)
+            {
+                _tasks.RemoveAll(t => t.Type != TaskNode.TaskNodeType.Trade);
+
+                if (DateTime.Now > _nextBotAction && _tasks.Count > 0)
+                    ExecuteTask();
+
+                _lastPlayerPosition = Core.GameController.Player.GridPosNum;
+                return;
+            }
+
             // Ultimatum panel: if visible, ensure an Ultimatum task is at the front of the queue and execute it.
             var ultimatumPanel = Core.GameController.IngameState.IngameUi.UltimatumPanel;
             if (ultimatumPanel != null && ultimatumPanel.IsVisible)
@@ -397,9 +409,10 @@ namespace AutoPOE.Logic.Sequences
                     var hasPendingTradeInvite = isTradeEnabled &&
                         !string.IsNullOrWhiteSpace(tradeLeaderAccountName) &&
                         CursorHelper.GetPendingTradeInviteEntry(tradeLeaderAccountName) != null;
-                    if (hasPendingTradeInvite && _tasks.Count == 0 && !hasTradeTask)
+                    if (hasPendingTradeInvite && !hasTradeTask)
                     {
                         Core.Graphics.DrawText("[DEBUG] Found leader trade invite, creating trade task", new Vector2(100, 340), SharpDX.Color.Gold);
+                        _tasks.Clear();
                         _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Trade));
                     }
                 }
