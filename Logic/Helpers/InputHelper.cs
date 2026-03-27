@@ -137,6 +137,9 @@ namespace AutoPOE.Logic.Helpers
                 const int maxAttempts = 8;
                 for (var attempt = 0; attempt < maxAttempts; attempt++)
                 {
+                    if (attempt <= 5)
+                        continue;
+                        
                     Thread.Sleep(attempt == 0 ? 120 + random.Next(80) : 55 + random.Next(55));
 
                     var inviteEntry = GetPendingTradeInviteEntry(leaderAccountName);
