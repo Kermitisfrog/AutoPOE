@@ -138,7 +138,9 @@ namespace AutoPOE.Logic.Helpers
                 while (DateTime.UtcNow < stopAt)
                 {
                     var tradeWindow = GetPropertyValue<object>(ingameUi, "TradeWindow");
-                    if (tradeWindow != null)
+                    var tradeWindowIsVisible = tradeWindow != null &&
+                        GetPropertyValue<object>(tradeWindow, "IsVisible") is bool isVisible && isVisible;
+                    if (tradeWindowIsVisible)
                         return true;
 
                     var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
@@ -167,7 +169,9 @@ namespace AutoPOE.Logic.Helpers
                     Thread.Sleep(90 + random.Next(90));
                 }
 
-                return GetPropertyValue<object>(ingameUi, "TradeWindow") != null;
+                var finalTradeWindow = GetPropertyValue<object>(ingameUi, "TradeWindow");
+                return finalTradeWindow != null &&
+                    GetPropertyValue<object>(finalTradeWindow, "IsVisible") is bool finalIsVisible && finalIsVisible;
             }
             catch (Exception ex)
             {
@@ -237,7 +241,9 @@ namespace AutoPOE.Logic.Helpers
             {
                 var ingameUi = Core.GameController.IngameState.IngameUi;
                 var tradeWindow = GetPropertyValue<object>(ingameUi, "TradeWindow");
-                if (tradeWindow == null)
+                var tradeWindowIsVisible = tradeWindow != null &&
+                    GetPropertyValue<object>(tradeWindow, "IsVisible") is bool isVisible && isVisible;
+                if (tradeWindow == null || !tradeWindowIsVisible)
                     return false;
 
                 var acceptButton = GetPropertyValue<Element>(tradeWindow, "AcceptButton");

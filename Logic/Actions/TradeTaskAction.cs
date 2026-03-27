@@ -47,7 +47,7 @@ namespace AutoPOE.Logic.Actions
             }
 
             var tradeWindow = Core.GameController.IngameState.IngameUi?.TradeWindow;
-            if (tradeWindow == null)
+            if (tradeWindow == null || !tradeWindow.IsVisible)
             {
                 context.Tasks.RemoveAt(0);
                 return;
