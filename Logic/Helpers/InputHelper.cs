@@ -127,26 +127,45 @@ namespace AutoPOE.Logic.Helpers
             return null;
         }
 
-        public static bool ClickTradeInviteAccept(object inviteEntry, Random random)
+        public static bool ClickTradeInviteAccept(string leaderAccountName, Random random)
         {
             try
             {
-                if (inviteEntry == null)
+                if (string.IsNullOrWhiteSpace(leaderAccountName))
                     return false;
 
-                // Retry briefly because the invite window can appear/interpolate over multiple ticks.
                 const int maxAttempts = 8;
-                Thread.Sleep(550);
                 for (var attempt = 0; attempt < maxAttempts; attempt++)
                 {
                     Thread.Sleep(attempt == 0 ? 120 + random.Next(80) : 55 + random.Next(55));
+
+                    var inviteEntry = GetPendingTradeInviteEntry(leaderAccountName);
+                    if (inviteEntry == null)
+                        continue;
 
                     var acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
                     if (acceptButton == null || !acceptButton.IsVisible)
                         continue;
 
+                    var firstCenter = acceptButton.Center;
+                    if (firstCenter.X <= 0 || firstCenter.Y <= 0)
+                        continue;
+
+                    Thread.Sleep(50 + random.Next(25));
+
+                    inviteEntry = GetPendingTradeInviteEntry(leaderAccountName);
+                    if (inviteEntry == null)
+                        continue;
+
+                    acceptButton = GetPropertyValue<Element>(inviteEntry, "AcceptButton");
+                    if (acceptButton == null || !acceptButton.IsVisible)
+                        continue;
+
                     var center = acceptButton.Center;
                     if (center.X <= 0 || center.Y <= 0)
+                        continue;
+
+                    if (Math.Abs(center.X - firstCenter.X) > 3 || Math.Abs(center.Y - firstCenter.Y) > 3)
                         continue;
 
                     Input.SetCursorPos(new Vector2(
