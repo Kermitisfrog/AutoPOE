@@ -11,8 +11,6 @@ namespace AutoPOE.Logic.Helpers
 {
     public static class CursorHelper
     {
-        private static DateTime _lastTradeWindowAcceptClickUtc = DateTime.MinValue;
-
         public static void SetCursorPosHuman2(Vector2 vec)
         {
             var windowRect = Core.GameController.Window.GetWindowRectangle();
@@ -225,28 +223,17 @@ namespace AutoPOE.Logic.Helpers
         {
             try
             {
-                var nowUtc = DateTime.UtcNow;
-                if ((nowUtc - _lastTradeWindowAcceptClickUtc).TotalMilliseconds < 700)
-                    return false;
-
-                var ingameUi = Core.GameController.IngameState.IngameUi;
-                var tradeWindow = GetPropertyValue<object>(ingameUi, "TradeWindow");
-                if (tradeWindow == null)
-                    return false;
-
-                var acceptButton = GetPropertyValue<Element>(tradeWindow, "AcceptButton");
+                var acceptButton = GetPropertyValue<Element>(Core.GameController.IngameState.IngameUi.TradeWindow, "AcceptButton");
                 if (acceptButton == null || !acceptButton.IsVisible)
                     return false;
 
-                var center = acceptButton.GetClientRect().Center;
-                var windowRect = Core.GameController.Window.GetWindowRectangle();
+                var center = acceptButton.Center;
                 Input.SetCursorPos(new Vector2(
-                    center.X + random.Next(-2, 3) + (int)windowRect.X,
-                    center.Y + random.Next(-2, 3) + (int)windowRect.Y));
+                    center.X + random.Next(-2, 3),
+                    center.Y + random.Next(-2, 3)));
 
                 Thread.Sleep(20 + random.Next(20));
 
-                // Wait for the button to register the cursor hover (shiny highlight) before clicking.
                 const int highlightPollMs = 30;
                 const int highlightTimeoutMs = 600;
                 var highlightElapsed = 0;
@@ -259,7 +246,6 @@ namespace AutoPOE.Logic.Helpers
                 if (!GetBooleanPropertyValue(acceptButton, "HasShinyHighlight"))
                     return false;
 
-                _lastTradeWindowAcceptClickUtc = nowUtc;
                 Input.LeftDown();
                 Thread.Sleep(15 + random.Next(20));
                 Input.LeftUp();
