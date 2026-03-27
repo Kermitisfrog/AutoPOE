@@ -142,7 +142,7 @@ namespace AutoPOE.Logic.Helpers
                     center.X + random.Next(-2, 3) + (int)windowRect.X,
                     center.Y + random.Next(-2, 3) + (int)windowRect.Y));
 
-                Thread.Sleep(20 + random.Next(20));
+                Thread.Sleep(200 + random.Next(20));
                 Input.LeftDown();
                 Thread.Sleep(15 + random.Next(20));
                 Input.LeftUp();
