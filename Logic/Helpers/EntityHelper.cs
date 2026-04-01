@@ -4,6 +4,7 @@ using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Enums;
 using System;
 using System.Linq;
+using System.Numerics;
 
 namespace AutoPOE.Logic.Helpers
 {
@@ -71,6 +72,26 @@ namespace AutoPOE.Logic.Helpers
             }
 
             return null;
+        }
+
+        public static Vector2 GetLeaderMovementTargetPosition(Entity leader)
+        {
+            if (!Core.Settings.Follower.Movement.IsPathToLeaderCursorEnabled.Value)
+                return leader.GridPosNum;
+
+            try
+            {
+                var pathfindingComponent = leader.GetComponent<Pathfinding>();
+                var wantedMovePosition = pathfindingComponent?.WantMoveToPosition ?? Vector2.Zero;
+                if (wantedMovePosition != Vector2.Zero)
+                    return wantedMovePosition;
+            }
+            catch
+            {
+                // Fallback to leader grid position when pathfinding data is unavailable.
+            }
+
+            return leader.GridPosNum;
         }
 
         public static bool HasBuff(Entity? entity, string buffName)

@@ -175,8 +175,12 @@ namespace AutoPOE.Logic.Sequences
             if (_directFollowAction.IsEnabled)
             {
                 _followTarget = EntityHelper.GetFollowingTarget();
+                var directFollowPosition = _followTarget != null
+                    ? EntityHelper.GetLeaderMovementTargetPosition(_followTarget)
+                    : Vector2.Zero;
                 _directFollowAction.HandleTick(
                     _followTarget,
+                    directFollowPosition,
                     _tasks,
                     _random,
                     CursorHelper.SetCursorPosHuman2,
@@ -268,8 +272,9 @@ namespace AutoPOE.Logic.Sequences
             if (_followTarget != null)
             {
                 var followerPos = Core.GameController.Player.GridPosNum;
-                var targetPos = _followTarget.GridPosNum;
-                var distanceFromFollower = Vector2.Distance(followerPos, targetPos);
+                var leaderPosition = _followTarget.GridPosNum;
+                var movementTargetPosition = EntityHelper.GetLeaderMovementTargetPosition(_followTarget);
+                var distanceFromFollower = Vector2.Distance(followerPos, leaderPosition);
 
                 // We are NOT within clear path distance range of leader. Logic can continue
                 if (distanceFromFollower >= Core.Settings.Follower.Movement.ClearPathDistance.Value)
@@ -279,7 +284,7 @@ namespace AutoPOE.Logic.Sequences
 
                     _debugLeaderBranch = "far";
                     // Leader moved VERY far in one frame. Check for transition to use to follow them.
-                    var distanceMoved = Vector2.Distance(_lastTargetPosition, targetPos);
+                    var distanceMoved = Vector2.Distance(_lastTargetPosition, leaderPosition);
                     _debugFarDetails = $"lastTargetZero={(_lastTargetPosition == Vector2.Zero)} distMoved={distanceMoved:F0} clearPath={Core.Settings.Follower.Movement.ClearPathDistance.Value}";
                     if (_lastTargetPosition != Vector2.Zero && distanceMoved > Core.Settings.Follower.Movement.ClearPathDistance.Value)
                     {
@@ -307,14 +312,14 @@ namespace AutoPOE.Logic.Sequences
                     }
                     else if (!_tasks.Any(t => t.Type == TaskNode.TaskNodeType.Transition))
                     {
-                        // Upsert a single Movement task aimed at the leader's current position.
+                        // Upsert a single Movement task aimed at the configured follow target (leader position or leader cursor position).
                         // MovementTaskAction handles the cursor aim, key press, and dash check.
                         _debugLeaderBranch = "far/direct-move";
                         var existingMoveTask = _tasks.FirstOrDefault(t => t.Type == TaskNode.TaskNodeType.Movement);
                         if (existingMoveTask != null)
-                            existingMoveTask.WorldPosition = targetPos;
+                            existingMoveTask.WorldPosition = movementTargetPosition;
                         else
-                            _tasks.Insert(0, new TaskNode(targetPos, Core.Settings.Follower.Movement.ClearPathDistance.Value));
+                            _tasks.Insert(0, new TaskNode(movementTargetPosition, Core.Settings.Follower.Movement.ClearPathDistance.Value));
                     }
                 }
                 else
@@ -346,7 +351,7 @@ namespace AutoPOE.Logic.Sequences
                     {
                         var hostileEnemy = EntityHelper.GetNearbyHostileEnemy();
                         var combatLeash = Core.Settings.Follower.Combat.CombatLeashDistance.Value;
-                        var enemyDistToLeader = hostileEnemy != null ? Vector2.Distance(hostileEnemy.GridPosNum, targetPos) : float.MaxValue;
+                        var enemyDistToLeader = hostileEnemy != null ? Vector2.Distance(hostileEnemy.GridPosNum, leaderPosition) : float.MaxValue;
                         var combatCooldownActive = DateTime.Now < _combatCooldownUntil;
 
                         if (hostileEnemy != null &&
@@ -417,7 +422,7 @@ namespace AutoPOE.Logic.Sequences
                         _tasks.Add(new TaskNode(followerPos, Core.Settings.Follower.Movement.ClearPathDistance.Value, TaskNode.TaskNodeType.Trade));
                     }
                 }
-                _lastTargetPosition = targetPos;
+                _lastTargetPosition = leaderPosition;
             }
             // Leader is null but we have tracked them this map.
             // Try using transition to follow them to their map
@@ -479,7 +484,7 @@ namespace AutoPOE.Logic.Sequences
                 () => _buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value),
                 targetPosition => DashHelper.TryDashTerrain(
                     targetPosition,
-                    _followTarget,
+                    Core.Settings.Follower.Movement.IsPathToLeaderCursorEnabled.Value ? null : _followTarget,
                     _tiles,
                     _numCols,
                     _numRows,

@@ -48,6 +48,9 @@ namespace AutoPOE
                 [Menu("Close Path Distance", "Range threshold: close=direct follow, far=pathfind. (Grid coordinates - use smaller values than world pos)")]
                 public RangeNode<int> ClearPathDistance { get; set; } = new RangeNode<int>(100, 10, 500);
 
+                [Menu("Path To Leader Cursor", "Disabled = Path To Leader Character (existing behavior). Enabled = Path To Leader Cursor (leader's wanted move position).")]
+                public ToggleNode IsPathToLeaderCursorEnabled { get; set; } = new ToggleNode(false);
+
                 [Menu("Leader Reacquire Delay", "Time to pause stale tasks after area load while waiting to find leader (ms).")]
                 public RangeNode<int> LeaderReacquireDelayMs { get; set; } = new RangeNode<int>(4000, 0, 10000);
 

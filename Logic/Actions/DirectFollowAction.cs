@@ -41,7 +41,7 @@ namespace AutoPOE.Logic.Actions
             _wasShiftDownLastTick = isShiftDown;
         }
 
-        public void HandleTick(Entity? followTarget, List<TaskNode> tasks, Random random, Action<Vector2> setCursorPosHuman2, Func<bool> tryMaintainBuffTargets, Action<Vector2> setLastTargetPosition)
+        public void HandleTick(Entity? followTarget, Vector2 followPosition, List<TaskNode> tasks, Random random, Action<Vector2> setCursorPosHuman2, Func<bool> tryMaintainBuffTargets, Action<Vector2> setLastTargetPosition)
         {
             if (!_isEnabled)
                 return;
@@ -53,12 +53,11 @@ namespace AutoPOE.Logic.Actions
             if (followTarget == null)
                 return;
 
-            var targetPos = followTarget.GridPosNum;
-            setCursorPosHuman2(Controls.GetScreenClampedGridPos(targetPos));
-            setLastTargetPosition(targetPos);
+            setCursorPosHuman2(Controls.GetScreenClampedGridPos(followPosition));
+            setLastTargetPosition(followPosition);
 
             var followerPos = Core.GameController.Player.GridPosNum;
-            var leaderDistance = Vector2.Distance(followerPos, targetPos);
+            var leaderDistance = Vector2.Distance(followerPos, followPosition);
             if (leaderDistance > Core.Settings.Follower.Movement.DashLeaderDistance.Value)
                 TryDirectFollowDash(random);
         }
