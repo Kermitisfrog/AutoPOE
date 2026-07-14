@@ -233,8 +233,6 @@ namespace AutoPOE.Logic.Sequences
                 validByType[EntityType.AreaTransition]
                     .Concat(validByType[EntityType.Portal])
                     .Concat(validByType[EntityType.TownPortal])
-                    .Concat(validByType[EntityType.MiscellaneousObjects].Where(I => I.Metadata == "Metadata/MiscellaneousObjects/Faridun/DjinnPortal"))
-                    .Concat(validByType[EntityType.Effect].Where(I => I.Metadata == "Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal"))
                     .Select(I => I.Id));
 
             // Remove transitions that no longer exist
@@ -245,9 +243,7 @@ namespace AutoPOE.Logic.Sequences
             // Add new transitions
             foreach (var transition in validByType[EntityType.AreaTransition]
                 .Concat(validByType[EntityType.Portal])
-                .Concat(validByType[EntityType.TownPortal])
-                    .Concat(validByType[EntityType.MiscellaneousObjects].Where(I => I.Metadata == "Metadata/MiscellaneousObjects/Faridun/DjinnPortal"))
-                    .Concat(validByType[EntityType.Effect].Where(I => I.Metadata == "Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal")))
+                .Concat(validByType[EntityType.TownPortal]))
             {
                 if (!_areaTransitions.ContainsKey(transition.Id))
                     _areaTransitions.Add(transition.Id, transition);
@@ -455,9 +451,7 @@ namespace AutoPOE.Logic.Sequences
 
         private static bool IsPortalType(Entity transition) =>
             transition.Type == EntityType.Portal ||
-            transition.Type == EntityType.TownPortal ||
-            transition.Metadata == "Metadata/MiscellaneousObjects/Faridun/DjinnPortal" ||
-            transition.Metadata == "Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal";
+            transition.Type == EntityType.TownPortal;
 
         private void ExecuteTask()
         {
