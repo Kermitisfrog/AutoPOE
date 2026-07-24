@@ -497,6 +497,7 @@ namespace AutoPOE.Logic.Sequences
 
         public void Render()
         {
+            Core.Graphics.DrawText($"[DEBUG] Settings.Enable={Core.Settings.Enable.Value} Core.IsBotRunning={Core.IsBotRunning}", new Vector2(100, 20), SharpDX.Color.Red);
             Core.Graphics.DrawText($"[DEBUG] Leader check: followTarget={(_followTarget != null ? "Found" : "Null")} lastTarget={_lastTargetPosition}", new Vector2(100, 80), SharpDX.Color.Magenta);
             Core.Graphics.DrawText($"[DEBUG] Leader branch: {_debugLeaderBranch}", new Vector2(100, 60), SharpDX.Color.Magenta);
             Core.Graphics.DrawText($"[DEBUG] Far details: {_debugFarDetails}", new Vector2(100, 40), SharpDX.Color.Magenta);

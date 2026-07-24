@@ -38,7 +38,8 @@ namespace AutoPOE
                 }
                 catch (Exception ex)
                 {
-                    Core.IsBotRunning = false;
+                    // Do not flip Core.IsBotRunning here; only the StartBot hotkey should
+                    // enable/disable the bot. Log and let the next tick retry.
                     Core.LogError("Main.Tick", ex);
                 }
             }
@@ -75,7 +76,9 @@ namespace AutoPOE
                 }
                 catch (Exception ex)
                 {
-                    Core.IsBotRunning = false;
+                    // Do not flip Core.IsBotRunning here; only the StartBot hotkey should
+                    // enable/disable the bot. FollowerSequence.Initialize already resets its
+                    // own internal state (_tiles etc.) on failure, so Tick() can keep running.
                     Core.LogError("Main.AreaChange", ex);
                 }
             }
