@@ -136,6 +136,56 @@ namespace AutoPOE.Logic.Sequences
 
         public void Tick()
         {
+            // Dynamically update area transitions (portals/passages appear during gameplay). Kept at the very
+            // top of Tick() so the cache stays fresh even when an early-return branch below (Ultimatum/Trade
+            // window/manual control/etc) would otherwise skip it entirely.
+            var validByType = Core.GameController.EntityListWrapper.ValidEntitiesByType;
+            var currentTransitionIds = new HashSet<uint>(
+                validByType[EntityType.AreaTransition]
+                    .Concat(validByType[EntityType.Portal])
+                    .Concat(validByType[EntityType.TownPortal])
+                    .Select(I => I.Id));
+
+            // Remove transitions that no longer exist
+            var removedIds = _areaTransitions.Keys.Where(id => !currentTransitionIds.Contains(id)).ToList();
+            foreach (var id in removedIds)
+                _areaTransitions.Remove(id);
+
+            // Add new transitions
+            foreach (var transition in validByType[EntityType.AreaTransition]
+                .Concat(validByType[EntityType.Portal])
+                .Concat(validByType[EntityType.TownPortal]))
+            {
+                if (!_areaTransitions.ContainsKey(transition.Id))
+                    _areaTransitions.Add(transition.Id, transition);
+            }
+
+            // Leader-issued transition command: while this buff is active on the follower, immediately try to
+            // take the nearest area transition instead of normal follow/pathing behavior.
+            var hasTransitionCommand = Core.GameController.Player.Buffs.Any(buff =>
+                string.Equals(buff.Name, "totem_aura_life_regen", StringComparison.OrdinalIgnoreCase));
+            if (hasTransitionCommand)
+            {
+                var nearestTransition = Core.GameController.EntityListWrapper.ValidEntitiesByType[EntityType.AreaTransition]
+                    .OrderBy(t => Vector2.Distance(Core.GameController.Player.GridPosNum, t.GridPosNum))
+                    .FirstOrDefault();
+
+                if (nearestTransition != null)
+                {
+                    _debugLeaderBranch = "totem-transition";
+                    _debugFarDetails = $"nearestTransitionDist={Vector2.Distance(Core.GameController.Player.GridPosNum, nearestTransition.GridPosNum):F0}";
+
+                    _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.Movement || t.Type == TaskNode.TaskNodeType.Transition);
+                    _tasks.Insert(0, new TaskNode(nearestTransition.GridPosNum, 200, TaskNode.TaskNodeType.Transition, nearestTransition.Id));
+
+                    if (DateTime.Now > _nextBotAction && _tasks.Count > 0)
+                        ExecuteTask();
+                    return;
+                }
+
+                _debugLeaderBranch = "totem-no-transition";
+            }
+
             // Ultimatum panel: if visible, ensure an Ultimatum task is at the front of the queue and execute it.
             var ultimatumPanel = Core.GameController.IngameState.IngameUi.UltimatumPanel;
             if (ultimatumPanel != null && ultimatumPanel.IsVisible)
@@ -225,28 +275,6 @@ namespace AutoPOE.Logic.Sequences
                     // Silently fail if revive panel is not available
                 }
                 return;
-            }
-
-            // Dynamically update area transitions (portals/passages appear during gameplay)
-            var validByType = Core.GameController.EntityListWrapper.ValidEntitiesByType;
-            var currentTransitionIds = new HashSet<uint>(
-                validByType[EntityType.AreaTransition]
-                    .Concat(validByType[EntityType.Portal])
-                    .Concat(validByType[EntityType.TownPortal])
-                    .Select(I => I.Id));
-
-            // Remove transitions that no longer exist
-            var removedIds = _areaTransitions.Keys.Where(id => !currentTransitionIds.Contains(id)).ToList();
-            foreach (var id in removedIds)
-                _areaTransitions.Remove(id);
-
-            // Add new transitions
-            foreach (var transition in validByType[EntityType.AreaTransition]
-                .Concat(validByType[EntityType.Portal])
-                .Concat(validByType[EntityType.TownPortal]))
-            {
-                if (!_areaTransitions.ContainsKey(transition.Id))
-                    _areaTransitions.Add(transition.Id, transition);
             }
 
             // Cache the current follow target
@@ -528,6 +556,9 @@ namespace AutoPOE.Logic.Sequences
             Core.Graphics.DrawText($"LeaderDist={leaderDist:F0} FollowTarget={(_followTarget != null ? "Found" : "Lost")} CurrentTask={taskInfo} CanExecute={canExecute}", new Vector2(100, 120), SharpDX.Color.Yellow);
             Core.Graphics.DrawText($"DirectFollowMode={directFollow} (toggle: Shift)", new Vector2(100, 140), SharpDX.Color.LawnGreen);
             Core.Graphics.DrawText($"Cursor: Abs=({cursorAbs.X}, {cursorAbs.Y}) Rel=({cursorRelative.X:F0}, {cursorRelative.Y:F0})", new Vector2(100, 160), SharpDX.Color.Orange);
+
+            if (_debugLeaderBranch == "totem-transition")
+                Core.Graphics.DrawText("Rejuvenation totem detected. Taking Transition", new Vector2(100, 180), SharpDX.Color.Cyan);
         }
     }
 
