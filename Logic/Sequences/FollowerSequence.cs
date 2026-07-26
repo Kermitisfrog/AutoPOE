@@ -556,6 +556,9 @@ namespace AutoPOE.Logic.Sequences
             Core.Graphics.DrawText($"LeaderDist={leaderDist:F0} FollowTarget={(_followTarget != null ? "Found" : "Lost")} CurrentTask={taskInfo} CanExecute={canExecute}", new Vector2(100, 120), SharpDX.Color.Yellow);
             Core.Graphics.DrawText($"DirectFollowMode={directFollow} (toggle: Shift)", new Vector2(100, 140), SharpDX.Color.LawnGreen);
             Core.Graphics.DrawText($"Cursor: Abs=({cursorAbs.X}, {cursorAbs.Y}) Rel=({cursorRelative.X:F0}, {cursorRelative.Y:F0})", new Vector2(100, 160), SharpDX.Color.Orange);
+
+            if (_debugLeaderBranch == "totem-transition")
+                Core.Graphics.DrawText("Rejuvenation totem detected. Taking Transition", new Vector2(100, 180), SharpDX.Color.Cyan);
         }
     }
 
