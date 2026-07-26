@@ -189,6 +189,12 @@ namespace AutoPOE.Logic.Helpers
                         if (item == null)
                             continue;
 
+                        var baseItemType = item.Item != null
+                            ? Core.GameController.Files.BaseItemTypes.Translate(item.Item.Path)
+                            : null;
+                        if (baseItemType?.ClassName == "QuestItem")
+                            continue;
+
                         var center = item.GetClientRect().Center;
 
                         var windowRect = Core.GameController.Window.GetWindowRectangle();
