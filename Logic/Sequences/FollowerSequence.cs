@@ -307,27 +307,26 @@ namespace AutoPOE.Logic.Sequences
                         _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.RegularItemLooting);
 
                     _debugLeaderBranch = "far";
-                    // Leader moved VERY far in one frame. Check for transition to use to follow them.
+                    // Leader moved VERY far in one frame. If the jump is extreme, try a nearby transition.
                     var distanceMoved = Vector2.Distance(_lastTargetPosition, leaderPosition);
-                    _debugFarDetails = $"lastTargetZero={(_lastTargetPosition == Vector2.Zero)} distMoved={distanceMoved:F0} clearPath={Core.Settings.Follower.Movement.ClearPathDistance.Value}";
-                    if (_lastTargetPosition != Vector2.Zero && distanceMoved > Core.Settings.Follower.Movement.ClearPathDistance.Value)
+                    var clearPathDistance = Core.Settings.Follower.Movement.ClearPathDistance.Value;
+                    var jumpThreshold = clearPathDistance * 3f;
+                    _debugFarDetails = $"lastTargetZero={(_lastTargetPosition == Vector2.Zero)} distMoved={distanceMoved:F0} clearPath={clearPathDistance} jumpThreshold={jumpThreshold:F0}";
+                    if (_lastTargetPosition != Vector2.Zero && distanceMoved > jumpThreshold)
                     {
-                        _debugLeaderBranch = "far/transition";
-                        var transition = _areaTransitions.Values.OrderBy(I => Vector2.Distance(_lastTargetPosition, I.GridPosNum)).FirstOrDefault();
-                        var transitionDist = transition != null ? Vector2.Distance(_lastTargetPosition, transition.GridPosNum) : -1;
-                        _debugFarDetails += $" transitionFound={(transition != null)} transitionDist={transitionDist:F0}";
-                        if (transition != null && transitionDist < Core.Settings.Follower.Movement.ClearPathDistance.Value)
+                        _debugLeaderBranch = "far/transition-jump";
+                        var transition = _areaTransitions.Values
+                            .Where(I => !IsPortalType(I))
+                            .Where(I => Vector2.Distance(followerPos, I.GridPosNum) <= clearPathDistance)
+                            .OrderBy(I => Vector2.Distance(followerPos, I.GridPosNum))
+                            .FirstOrDefault();
+                        var transitionDist = transition != null ? Vector2.Distance(followerPos, transition.GridPosNum) : -1;
+                        _debugFarDetails += $" nearbyTransitionFound={(transition != null)} nearbyTransitionDist={transitionDist:F0}";
+                        if (transition != null)
                         {
-                            // Leader is in zone (_followTarget != null); avoid portal-type transitions.
-                            if (IsPortalType(transition))
-                            {
-                                _debugFarDetails += " taskAdded=false(portal-in-zone)";
-                            }
-                            else
-                            {
-                                _tasks.Add(new TaskNode(transition.GridPosNum, 200, TaskNode.TaskNodeType.Transition));
-                                _debugFarDetails += " taskAdded=true";
-                            }
+                            _tasks.RemoveAll(t => t.Type == TaskNode.TaskNodeType.Movement || t.Type == TaskNode.TaskNodeType.Transition);
+                            _tasks.Insert(0, new TaskNode(transition.GridPosNum, 200, TaskNode.TaskNodeType.Transition, transition.Id));
+                            _debugFarDetails += " taskAdded=true";
                         }
                         else
                         {
