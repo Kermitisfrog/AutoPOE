@@ -20,9 +20,9 @@ namespace AutoPOE.Logic.Actions
                     return;
 
             context.SetCursorPosHuman2(Controls.GetScreenClampedGridPos(task.WorldPosition));
-            Thread.Sleep(context.Random.Next(25) + 30);
+            Thread.Sleep(context.Random.Next(10) + 15);
             Input.KeyDown(Core.Settings.Follower.Movement.MovementKey);
-            Thread.Sleep(context.Random.Next(25) + 30);
+            Thread.Sleep(context.Random.Next(10) + 15);
             Input.KeyUp(Core.Settings.Follower.Movement.MovementKey);
             Core.ActionPerformed();
 
