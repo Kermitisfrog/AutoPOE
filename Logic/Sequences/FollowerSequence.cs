@@ -234,7 +234,14 @@ namespace AutoPOE.Logic.Sequences
                     _tasks,
                     _random,
                     CursorHelper.SetCursorPosHuman2,
-                    () => _buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value),
+                    () =>
+                    {
+                        var directFollowArea = Core.GameController.Area.CurrentArea;
+                        if (directFollowArea.IsHideout || directFollowArea.IsTown)
+                            return false;
+
+                        return _buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value);
+                    },
                     targetPosition => _lastTargetPosition = targetPosition);
 
                 _lastPlayerPosition = Core.GameController.Player.GridPosNum;
@@ -279,7 +286,10 @@ namespace AutoPOE.Logic.Sequences
 
             // Cache the current follow target
             _followTarget = EntityHelper.GetFollowingTarget();
-            if (_buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value))
+            var currentArea = Core.GameController.Area.CurrentArea;
+            var isInHideoutOrTown = currentArea.IsHideout || currentArea.IsTown;
+            if (!isInHideoutOrTown &&
+                _buffHeartbeatAction.TryMaintainTargets(_followTarget, _tasks, _random, CursorHelper.SetCursorPosHuman2, value => _nextBotAction = value))
             {
                 _lastPlayerPosition = Core.GameController.Player.GridPosNum;
                 return;
