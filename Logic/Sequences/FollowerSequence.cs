@@ -524,7 +524,7 @@ namespace AutoPOE.Logic.Sequences
                     CursorHelper.SetCursorPosHuman2),
                 EntityHelper.GetNearbyHostileEnemy,
                 GemHelper.GetLevelableGems,
-                () => CursorHelper.ClickClosestVisibleWorldItemLabel(_random, _followTarget?.GridPosNum),
+                targetEntityId => CursorHelper.ClickWorldItemLabel(_random, _followTarget?.GridPosNum, targetEntityId),
                 element => CursorHelper.ClickLevelableGem(element, _random),
                 CursorHelper.SetCursorPosHuman2,
                 value => _combatCooldownUntil = value);
@@ -592,6 +592,7 @@ namespace AutoPOE.Logic.Sequences
         public int AttemptCount { get; set; }
         public uint? TargetEntityId { get; set; }
         public string? TargetLabel { get; set; }
+        public DateTime CreatedAt { get; } = DateTime.Now;
 
         public TaskNode(Vector2 position, int bounds, TaskNodeType type = TaskNodeType.Movement, uint? targetEntityId = null, string? targetLabel = null)
         {

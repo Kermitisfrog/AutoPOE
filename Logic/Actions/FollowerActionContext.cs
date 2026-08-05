@@ -22,7 +22,7 @@ namespace AutoPOE.Logic.Actions
             Func<Vector2, bool> checkDashTerrain,
             Func<Entity?> getNearbyHostileEnemy,
             Func<List<Element>> getLevelableGems,
-            Func<bool> clickClosestVisibleWorldItemLabel,
+            Func<uint?, (bool Clicked, uint? EntityId)> clickWorldItemLabel,
             Action<Element> clickLevelableGem,
             Action<Vector2> setCursorPosHuman2,
             Action<DateTime> setCombatCooldown)
@@ -36,7 +36,7 @@ namespace AutoPOE.Logic.Actions
             CheckDashTerrain = checkDashTerrain;
             GetNearbyHostileEnemy = getNearbyHostileEnemy;
             GetLevelableGems = getLevelableGems;
-            ClickClosestVisibleWorldItemLabel = clickClosestVisibleWorldItemLabel;
+            ClickWorldItemLabel = clickWorldItemLabel;
             ClickLevelableGem = clickLevelableGem;
             SetCursorPosHuman2 = setCursorPosHuman2;
             SetCombatCooldown = setCombatCooldown;
@@ -49,7 +49,7 @@ namespace AutoPOE.Logic.Actions
         public Func<Vector2, bool> CheckDashTerrain { get; }
         public Func<Entity?> GetNearbyHostileEnemy { get; }
         public Func<List<Element>> GetLevelableGems { get; }
-        public Func<bool> ClickClosestVisibleWorldItemLabel { get; }
+        public Func<uint?, (bool Clicked, uint? EntityId)> ClickWorldItemLabel { get; }
         public Action<Element> ClickLevelableGem { get; }
         public Action<Vector2> SetCursorPosHuman2 { get; }
         public Action<DateTime> SetCombatCooldown { get; }

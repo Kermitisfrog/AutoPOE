@@ -43,9 +43,11 @@ namespace AutoPOE.Logic.Actions
             context.NextBotAction = DateTime.Now.AddMilliseconds(Core.Settings.Follower.Movement.BotInputFrequency.Value + context.Random.Next(Core.Settings.Follower.Movement.BotInputFrequency));
             task.AttemptCount++;
 
-            if (task.AttemptCount > 5)
+            // Locking onto one item can take several seconds of walking before it's in pickup range;
+            // bound by elapsed time rather than attempt count so travel isn't mistaken for a stuck task.
+            if (DateTime.Now - task.CreatedAt > TimeSpan.FromSeconds(15))
             {
-                Core.Graphics.DrawText($"[DEBUG] loot removed: Attempts={task.AttemptCount}", new Vector2(100, 220), SharpDX.Color.Yellow);
+                Core.Graphics.DrawText($"[DEBUG] loot removed: timed out after {task.AttemptCount} attempts", new Vector2(100, 220), SharpDX.Color.Yellow);
                 context.Tasks.RemoveAt(0);
                 return;
             }
@@ -56,14 +58,20 @@ namespace AutoPOE.Logic.Actions
             if (TryYieldToBuffs(context))
                 return;
 
-            var clickedLabel = context.ClickClosestVisibleWorldItemLabel();
-            Core.Graphics.DrawText($"[DEBUG] loot attempt {task.AttemptCount}: ClickedClosestVisibleWorldLabel={clickedLabel}", new Vector2(100, 220), SharpDX.Color.Yellow);
+            // Lock onto whichever item we click first, and keep clicking that same one until its label
+            // disappears (picked up) instead of re-picking "closest" every attempt, which drifts as we walk.
+            var (clicked, clickedEntityId) = context.ClickWorldItemLabel(task.TargetEntityId);
 
-            if (clickedLabel)
+            if (!clicked)
             {
-                context.NextBotAction = DateTime.Now.AddSeconds(1);
+                var reason = task.TargetEntityId.HasValue ? "locked target picked up/gone" : "no visible loot";
+                Core.Graphics.DrawText($"[DEBUG] loot task done: {reason}", new Vector2(100, 220), SharpDX.Color.Yellow);
                 context.Tasks.RemoveAt(0);
+                return;
             }
+
+            task.TargetEntityId ??= clickedEntityId;
+            Core.Graphics.DrawText($"[DEBUG] loot attempt {task.AttemptCount}: locked target={task.TargetEntityId}", new Vector2(100, 220), SharpDX.Color.Yellow);
         }
     }
 }

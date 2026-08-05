@@ -19,19 +19,24 @@ namespace AutoPOE.Logic.Helpers
             Input.SetCursorPos(new Vector2(absoluteX, absoluteY));
         }
 
-        public static bool ClickClosestVisibleWorldItemLabel(Random random, Vector2? leaderPos = null)
+        /// <summary>
+        /// Clicks a ground item label. If <paramref name="targetEntityId"/> is null, picks the closest eligible
+        /// label and returns its entity id so callers can lock onto the same item for subsequent calls. If
+        /// non-null, only that specific entity's label is clicked (or nothing, if it's no longer visible/eligible -
+        /// e.g. picked up), so a locked-on item's target never drifts as its on-screen position shifts.
+        /// </summary>
+        public static (bool Clicked, uint? EntityId) ClickWorldItemLabel(Random random, Vector2? leaderPos, uint? targetEntityId)
         {
             var visibleLabels = Core.GameController.IngameState.IngameUi.ItemsOnGroundLabelsVisible;
             if (visibleLabels == null)
-                return false;
+                return (false, null);
 
             var followerPos = Core.GameController.Player.GridPosNum;
             var maxDist = Core.Settings.Follower.Movement.ClearPathDistance.Value;
 
-            var closestLabel = visibleLabels
+            var candidates = visibleLabels
                 .Where(label => label?.ItemOnGround != null && label.Label != null)
                 .Where(label => !(label.Label.Text ?? "").EndsWith("gold", StringComparison.OrdinalIgnoreCase))
-                .Where(label => !leaderPos.HasValue || Vector2.Distance(leaderPos.Value, label.ItemOnGround.GridPosNum) <= maxDist)
                 .Select(label =>
                 {
                     WorldItem? worldItemComponent;
@@ -46,17 +51,19 @@ namespace AutoPOE.Logic.Helpers
 
                     return new { Label = label, GroundItem = label.ItemOnGround, WorldItem = worldItemComponent };
                 })
-                .Where(x =>
-                {
-                    return x.WorldItem != null && !x.WorldItem.AllocatedToSomeoneElse;
-                })
-                .OrderBy(x => Vector2.Distance(followerPos, x.GroundItem.GridPosNum))
-                .FirstOrDefault();
+                .Where(x => x.WorldItem != null && !x.WorldItem.AllocatedToSomeoneElse);
 
-            if (closestLabel == null)
-                return false;
+            var target = targetEntityId.HasValue
+                ? candidates.FirstOrDefault(x => x.GroundItem.Id == targetEntityId.Value)
+                : candidates
+                    .Where(x => !leaderPos.HasValue || Vector2.Distance(leaderPos.Value, x.GroundItem.GridPosNum) <= maxDist)
+                    .OrderBy(x => Vector2.Distance(followerPos, x.GroundItem.GridPosNum))
+                    .FirstOrDefault();
 
-            var clickPos = closestLabel.Label.Label.GetClientRect().Center;
+            if (target == null)
+                return (false, null);
+
+            var clickPos = target.Label.Label.GetClientRect().Center;
             var windowRect = Core.GameController.Window.GetWindowRectangle();
             Input.SetCursorPos(new Vector2(
                 clickPos.X + random.Next(-2, 3) + (int)windowRect.X,
@@ -67,7 +74,7 @@ namespace AutoPOE.Logic.Helpers
             Thread.Sleep(15 + random.Next(20));
             Input.LeftUp();
             Core.ActionPerformed();
-            return true;
+            return (true, target.GroundItem.Id);
         }
 
         public static void ClickLevelableGem(Element clickableElement, Random random)
